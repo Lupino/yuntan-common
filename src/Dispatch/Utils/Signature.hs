@@ -46,6 +46,7 @@ signJSON solt = hex . hmacMD5 solt . v2b
         sortHashMap = sortOn (\(k, _) -> T.unpack k) . LH.toList
 
         joinList :: [(T.Text, Value)] -> B.ByteString
+        joinList []          = B.empty
         joinList ((k, v):xs) = t2b' k `B.append` v2b v `B.append` joinList xs
 
         joinArray :: V.Vector Value -> B.ByteString

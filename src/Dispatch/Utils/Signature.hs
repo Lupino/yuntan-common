@@ -3,6 +3,7 @@ module Dispatch.Utils.Signature
     signParams
   , signJSON
   , hmacMD5
+  , signRaw
   ) where
 
 import           Crypto.Hash               (MD5)
@@ -60,3 +61,6 @@ signJSON solt = hex . hmacMD5 solt . v2b
         v2b (Bool True)  = B.pack "true"
         v2b (Bool False) = B.pack "false"
         v2b Null         = B.empty
+
+signRaw :: B.ByteString -> B.ByteString -> B.ByteString
+signRaw solt = hex . hmacMD5 solt

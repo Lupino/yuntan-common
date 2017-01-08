@@ -16,7 +16,7 @@ import           Data.Aeson            (ToJSON)
 maybeNotFound :: (ToJSON a, ScottyError e, Monad m) => String -> Maybe a -> ActionT e m ()
 maybeNotFound _ (Just a) = json a
 maybeNotFound obj Nothing = status status404
-                            >> json (err $ obj ++ "not found.")
+                            >> json (err $ obj ++ " not found.")
 
 eitherBadRequest :: (ToJSON a, ScottyError e, Monad m) => Either ErrResult a -> ActionT e m ()
 eitherBadRequest (Right a) = json a

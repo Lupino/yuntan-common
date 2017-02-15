@@ -22,6 +22,9 @@ library
                      , Dispatch.Utils.JSON
                      , Dispatch.Utils.Scotty
                      , Dispatch.Utils.Signature
+                     , Dispatch.Config.MySQLConfig
+                     , Dispatch.Config.RedisConfig
+                     , Dispatch.Config.InfluxConfig
 
   build-depends:       base >= 4.7 && < 5
                      , hashable
@@ -35,6 +38,15 @@ library
                      , bytestring
                      , vector
                      , byteable
+                     , resource-pool
+                     , mysql-simple
+                     , time
+
+                     , hedis
+                     , network
+
+                     , lens
+                     , influxdb
   default-language:    Haskell2010
 
 source-repository head

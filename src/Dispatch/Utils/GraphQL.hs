@@ -3,6 +3,11 @@
 module Dispatch.Utils.GraphQL
   (
     getValue
+  , getIntValue
+  , getFloatValue
+  , getTextValue
+  , getEnumValue
+  , getBoolValue
   , value
   , value'
   ) where
@@ -11,9 +16,10 @@ import           Control.Applicative (Alternative (..))
 
 import qualified Data.Aeson          as A (Value (..))
 import           Data.GraphQL.AST    (Name)
-import           Data.GraphQL.Schema (Argument (..), Resolver, Value, array,
-                                      object, scalar)
+import           Data.GraphQL.Schema (Argument (..), Resolver, Value (..),
+                                      array, object, scalar)
 import qualified Data.HashMap.Strict as HM (toList)
+import           Data.Int            (Int32)
 import           Data.Text           (Text)
 import qualified Data.Vector         as V (Vector, head, null, toList)
 
@@ -29,6 +35,31 @@ getValue :: Name -> [Argument] -> Maybe Value
 getValue _ [] = Nothing
 getValue k (Argument n v:xs) | k == n = Just v
                              | otherwise = getValue k xs
+
+getIntValue :: Num a => Name -> [Argument] -> Maybe a
+getIntValue n argv = case getValue n argv of
+                       (Just (ValueInt v)) -> Just $ fromIntegral v
+                       _                   -> Nothing
+
+getFloatValue :: Name -> [Argument] -> Maybe Double
+getFloatValue n argv = case getValue n argv of
+                         (Just (ValueFloat v)) -> Just v
+                         _                     -> Nothing
+
+getBoolValue :: Name -> [Argument] -> Maybe Bool
+getBoolValue n argv = case getValue n argv of
+                        (Just (ValueBoolean v)) -> Just v
+                        _                       -> Nothing
+
+getTextValue :: Name -> [Argument] -> Maybe Text
+getTextValue n argv = case getValue n argv of
+                        (Just (ValueString v)) -> Just v
+                        _                      -> Nothing
+
+getEnumValue :: Name -> [Argument] -> Maybe Name
+getEnumValue n argv = case getValue n argv of
+                        (Just (ValueEnum v)) -> Just v
+                        _                    -> Nothing
 
 value :: Alternative f => Name -> A.Value -> Resolver f
 value k (A.Object v) = object k . listToResolver $ HM.toList v

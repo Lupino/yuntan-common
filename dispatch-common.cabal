@@ -1,6 +1,6 @@
 name:                dispatch-common
 version:             0.1.0.0
-synopsis:            Initial project template from stack
+synopsis:            The common utils for haskell program.
 description:         Please see README.md
 homepage:            https://github.com/Lupino/dispatch-common#readme
 license:             BSD3
@@ -13,46 +13,136 @@ build-type:          Simple
 -- extra-source-files:
 cabal-version:       >=1.10
 
+flag influxdb-config
+    description: Influxdb config
+    default: False
+    manual: True
+
+flag mysql-config
+    description: MySQL config
+    default: False
+    manual: True
+
+flag redis-config
+    description: Redis config
+    default: False
+    manual: True
+
+flag graphql-utils
+    description: GraphQL utils
+    default: False
+    manual: True
+
+flag haxl-utils
+    description: Haxl utils
+    default: False
+    manual: True
+
+flag json-utils
+    description: JSON utils
+    default: False
+    manual: True
+
+flag scotty-utils
+    description: Scotty utils
+    default: False
+    manual: True
+
+flag signature-utils
+    description: Signature utils
+    default: False
+    manual: True
+
+flag result-type
+    description: Result type
+    default: False
+    manual: True
+
+flag list-result-type
+    description: ListResult type
+    default: False
+    manual: True
+
+flag order-by-type
+    description: OrderBy type
+    default: False
+    manual: True
+
 library
   hs-source-dirs:      src
-  exposed-modules:     Dispatch.Types.OrderBy
-                     , Dispatch.Types.ListResult
-                     , Dispatch.Types.Result
 
-                     , Dispatch.Utils.Haxl
-                     , Dispatch.Utils.JSON
-                     , Dispatch.Utils.Scotty
-                     , Dispatch.Utils.GraphQL
-                     , Dispatch.Utils.Signature
+  if flag(influxdb-config)
+    exposed-modules: Dispatch.Config.InfluxConfig
+    build-depends: influxdb
+                 , lens
+                 , text
 
-                     , Dispatch.Config.MySQLConfig
-                     , Dispatch.Config.RedisConfig
-                     , Dispatch.Config.InfluxConfig
+  if flag(mysql-config)
+    exposed-modules: Dispatch.Config.MySQLConfig
+    build-depends: mysql-simple
+                 , resource-pool
+                 , time
+                 , aeson
+
+  if flag(redis-config)
+    exposed-modules: Dispatch.Config.RedisConfig
+    build-depends: hedis
+                 , network
+                 , time
+                 , aeson
+
+  if flag(graphql-utils)
+    exposed-modules: Dispatch.Utils.GraphQL
+    build-depends: graphql
+                 , aeson
+                 , unordered-containers
+                 , text
+                 , vector
+                 , haxl
+
+  if flag(haxl-utils)
+    exposed-modules: Dispatch.Utils.Haxl
+    build-depends: haxl
+                 , unordered-containers
+
+  if flag(json-utils) || flag(list-result-type)
+    exposed-modules: Dispatch.Utils.JSON
+    build-depends: aeson
+                 , unordered-containers
+                 , text
+
+  if flag(scotty-utils)
+    exposed-modules: Dispatch.Utils.Scotty
+    build-depends: scotty
+                 , http-types
+                 , aeson
+
+  if flag(signature-utils)
+    exposed-modules: Dispatch.Utils.Signature
+    build-depends: cryptohash
+                 , hex
+                 , byteable
+                 , bytestring
+                 , vector
+                 , aeson
+                 , unordered-containers
+                 , text
+
+  if flag(result-type) || flag(scotty-utils)
+    exposed-modules: Dispatch.Types.Result
+    build-depends: aeson
+
+  if flag(list-result-type)
+    exposed-modules: Dispatch.Types.ListResult
+    build-depends: aeson
+                 , unordered-containers
+                 , text
+
+  if flag(order-by-type)
+    exposed-modules: Dispatch.Types.OrderBy
+    build-depends: hashable
 
   build-depends:       base >= 4.7 && < 5
-                     , hashable
-                     , unordered-containers
-                     , aeson
-                     , text
-                     , http-types
-                     , scotty
-                     , cryptohash
-                     , hex
-                     , bytestring
-                     , vector
-                     , byteable
-                     , resource-pool
-                     , mysql-simple
-                     , time
-
-                     , hedis
-                     , network
-
-                     , lens
-                     , influxdb
-
-                     , haxl
-                     , graphql
   default-language:    Haskell2010
 
 source-repository head

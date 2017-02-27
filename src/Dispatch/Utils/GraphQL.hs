@@ -19,7 +19,6 @@ import           Data.GraphQL.AST    (Name)
 import           Data.GraphQL.Schema (Argument (..), Resolver, Value (..),
                                       array, object, scalar)
 import qualified Data.HashMap.Strict as HM (toList)
-import           Data.Int            (Int32)
 import           Data.Text           (Text)
 import qualified Data.Vector         as V (Vector, head, null, toList)
 

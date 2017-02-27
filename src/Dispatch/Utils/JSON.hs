@@ -17,6 +17,8 @@ replace :: Text -> Text -> Value -> Value
 replace okey nkey (Object v) = Object . delete okey $ insert nkey ov v
   where ov = lookupDefault Null okey v
 
+replace _ _ v = v
+
 unionValue :: Value -> Value -> Value
 unionValue (Object a) (Object b) = Object $ union a b
 unionValue (Object a) _          = Object a

@@ -58,8 +58,8 @@ emptyListResult = ListResult { getFrom = 0
 toListResult :: FromJSON a => Text -> Value -> Maybe (ListResult a)
 toListResult okey v = do
   case fromJSON (replace okey "result" v) of
-    Success v -> Just v
-    _         -> Nothing
+    Success v' -> Just v'
+    _          -> Nothing
 
 fromListResult :: ToJSON a => Text -> ListResult a -> Value
 fromListResult key ret = replace "result" key $ toJSON ret

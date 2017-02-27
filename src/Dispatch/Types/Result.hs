@@ -10,8 +10,8 @@ module Dispatch.Types.Result
   , ok
   ) where
 
-import           Data.Aeson (FromJSON (..), ToJSON (..), Value, object,
-                             withObject, (.:), (.=))
+import           Data.Aeson (FromJSON (..), ToJSON (..), object, withObject,
+                             (.:), (.=))
 
 data OkResult = OkResult { okMsg :: String }
   deriving (Show)

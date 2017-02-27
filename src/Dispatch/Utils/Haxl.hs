@@ -14,11 +14,12 @@ import           Haxl.Core.Types     (DataCache (..), emptyDataCache)
 removeCache :: Typeable k => k -> GenHaxl u ()
 removeCache k = do
   ref <- env cacheRef
-  unsafeLiftIO $ writeIORef ref . del k  =<< readIORef ref
+  unsafeLiftIO $ writeIORef ref . doDel =<< readIORef ref
 
-  where del :: Typeable k => k -> DataCache u -> DataCache u
-        del k (DataCache cache) = DataCache $ delete key cache
-          where key = typeOf k
+  where doDel :: DataCache u -> DataCache u
+        doDel (DataCache cache) = DataCache $ delete key cache
+
+        key = typeOf k
 
 clearCache :: GenHaxl u ()
 clearCache = do

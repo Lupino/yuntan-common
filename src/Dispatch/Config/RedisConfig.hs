@@ -7,8 +7,7 @@ module Dispatch.Config.RedisConfig
   , genRedisConnection
   , defaultRedisConfig
   ) where
-import           Data.Aeson     (FromJSON, parseJSON, withObject, (.!=), (.:),
-                                 (.:?))
+import           Data.Aeson     (FromJSON, parseJSON, withObject, (.!=), (.:?))
 import           Data.Time      (NominalDiffTime)
 
 import           Database.Redis (ConnectInfo (..), Connection, connect,

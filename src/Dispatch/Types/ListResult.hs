@@ -8,6 +8,7 @@ module Dispatch.Types.ListResult
   , Total
   , ListResult (..)
   , emptyListResult
+  , merge
 
   , toListResult
   , fromListResult
@@ -54,6 +55,16 @@ emptyListResult = ListResult { getFrom = 0
                              , getTotal = 0
                              , getResult = []
                              }
+
+merge :: [a] -> ListResult b -> ListResult a
+merge t (ListResult { getFrom = from
+                    , getSize = size
+                    , getTotal = total
+                    }) = ListResult { getFrom = from
+                                    , getSize = size
+                                    , getTotal = total
+                                    , getResult = t
+                                    }
 
 toListResult :: FromJSON a => Text -> Value -> Maybe (ListResult a)
 toListResult okey v = do

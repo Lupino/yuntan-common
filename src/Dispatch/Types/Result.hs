@@ -4,25 +4,30 @@
 
 module Dispatch.Types.Result
   (
-    OkResult
-  , ErrResult
+    OkResult (..)
+  , ErrResult (..)
   , err
   , ok
+  , fromOkResult
+  , toOkResult
   ) where
 
-import           Data.Aeson (FromJSON (..), ToJSON (..), object, withObject,
-                             (.:), (.=))
+import           Data.Aeson          (FromJSON (..), Result (..), ToJSON (..),
+                                      Value, fromJSON, object, withObject, (.:),
+                                      (.=))
+import           Data.Text           (Text)
+import           Dispatch.Utils.JSON (replace)
 
-data OkResult = OkResult { okMsg :: String }
+data OkResult a = OkResult { okMsg :: a }
   deriving (Show)
 
-instance FromJSON OkResult where
+instance (FromJSON a) => FromJSON (OkResult a) where
   parseJSON = withObject "OkResult" $ \o -> do
     okMsg <- o .: "result"
     return OkResult{..}
 
-instance ToJSON OkResult where
-  toJSON OkResult{..} = object [ "result"   .= okMsg ]
+instance (ToJSON a) => ToJSON (OkResult a) where
+  toJSON OkResult{..} = object [ "result" .= okMsg ]
 
 data ErrResult = ErrResult { errMsg :: String }
   deriving (Show)
@@ -33,11 +38,20 @@ instance FromJSON ErrResult where
     return ErrResult{..}
 
 instance ToJSON ErrResult where
-  toJSON ErrResult{..} = object [ "err"   .= errMsg ]
+  toJSON ErrResult{..} = object [ "err" .= errMsg ]
 
 err :: String -> ErrResult
 err = ErrResult
 
 
-ok :: String -> OkResult
+ok :: a -> OkResult a
 ok = OkResult
+
+toOkResult :: FromJSON a => Text -> Value -> Maybe (OkResult a)
+toOkResult okey v = do
+  case fromJSON (replace okey "result" v) of
+    Success v' -> Just v'
+    _          -> Nothing
+
+fromOkResult :: ToJSON a => Text -> OkResult a -> Value
+fromOkResult key ret = replace "result" key $ toJSON ret

@@ -76,6 +76,7 @@ library
     build-depends: influxdb
                  , lens
                  , text
+                 , aeson
 
   if flag(mysql-config)
     exposed-modules: Dispatch.Config.MySQLConfig
@@ -105,7 +106,7 @@ library
     build-depends: haxl
                  , unordered-containers
 
-  if flag(json-utils) || flag(list-result-type)
+  if flag(json-utils) || flag(list-result-type) || flag(result-type) || flag(scotty-utils)
     exposed-modules: Dispatch.Utils.JSON
     build-depends: aeson
                  , unordered-containers
@@ -132,7 +133,7 @@ library
     exposed-modules: Dispatch.Types.Result
     build-depends: aeson
 
-  if flag(list-result-type)
+  if flag(list-result-type) || flag(scotty-utils)
     exposed-modules: Dispatch.Types.ListResult
     build-depends: aeson
                  , unordered-containers

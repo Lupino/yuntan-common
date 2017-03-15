@@ -18,16 +18,16 @@ import           Data.Aeson          (FromJSON (..), Result (..), ToJSON (..),
 import           Data.Text           (Text)
 import           Dispatch.Utils.JSON (replace)
 
-data OkResult a = OkResult { okMsg :: a }
+data OkResult a = OkResult { getValue :: a }
   deriving (Show)
 
 instance (FromJSON a) => FromJSON (OkResult a) where
   parseJSON = withObject "OkResult" $ \o -> do
-    okMsg <- o .: "result"
+    getValue <- o .: "result"
     return OkResult{..}
 
 instance (ToJSON a) => ToJSON (OkResult a) where
-  toJSON OkResult{..} = object [ "result" .= okMsg ]
+  toJSON OkResult{..} = object [ "result" .= getValue ]
 
 data ErrResult = ErrResult { errMsg :: String }
   deriving (Show)

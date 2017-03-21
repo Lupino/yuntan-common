@@ -10,16 +10,19 @@ module Dispatch.Utils.Scotty
   , errNotFound
   , errBadRequest
   , okListResult
+  , safeParam
   ) where
 
 import           Dispatch.Types.ListResult (ListResult, fromListResult)
 import qualified Dispatch.Types.Result     as R (ErrResult, err, fromOkResult,
                                                  ok)
 import           Network.HTTP.Types        (Status, status400, status404)
-import           Web.Scotty.Trans          (ActionT, ScottyError, json, status)
+import           Web.Scotty.Trans          (ActionT, Parsable, ScottyError,
+                                            json, param, rescue, status)
 
 import           Data.Aeson                (ToJSON)
 import           Data.Text                 (Text)
+import qualified Data.Text.Lazy            as LT (Text)
 
 maybeNotFound :: (ToJSON a, ScottyError e, Monad m) => String -> Maybe a -> ActionT e m ()
 maybeNotFound _ (Just a)  = json a
@@ -47,3 +50,6 @@ errBadRequest = err status400
 
 okListResult :: (ToJSON a, ScottyError e, Monad m) => Text -> ListResult a -> ActionT e m ()
 okListResult key = json . fromListResult key
+
+safeParam ::(Parsable a, ScottyError e, Monad m) => LT.Text -> a -> ActionT e m a
+safeParam key def = param key `rescue` (\_ -> return def)

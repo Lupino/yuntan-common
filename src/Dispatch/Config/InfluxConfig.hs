@@ -6,6 +6,10 @@ module Dispatch.Config.InfluxConfig
     InfluxConfig (..)
   , genWriteParams
   , defaultInfluxConfig
+  , InfluxHandle
+  , newInfluxHandle
+  , getInflux
+  , updateInfluxHandle
   ) where
 
 import           Data.Aeson              (FromJSON, parseJSON, withObject,
@@ -18,6 +22,9 @@ import           Data.String             (fromString)
 import           Database.InfluxDB.Types (Credentials (..), authentication,
                                           host, localServer, port)
 import           Database.InfluxDB.Write (WriteParams, server, writeParams)
+
+import           Data.IORef              (IORef, atomicWriteIORef, newIORef,
+                                          readIORef)
 
 data InfluxConfig = InfluxConfig { influxHost   :: Text
                                  , influxPort   :: Int
@@ -64,3 +71,14 @@ genWriteParams conf | enable = Just $ writeParams db & server .~ s & authenticat
                                     else Nothing
         enable = influxEnable conf
         s      = localServer & host .~ h & port .~ p
+
+newtype InfluxHandle = InfluxHandle (IORef (Maybe WriteParams))
+
+newInfluxHandle :: Maybe WriteParams -> IO InfluxHandle
+newInfluxHandle params = InfluxHandle <$> newIORef params
+
+getInflux :: InfluxHandle -> IO (Maybe WriteParams)
+getInflux (InfluxHandle ref) = readIORef ref
+
+updateInfluxHandle :: (Maybe WriteParams) -> InfluxHandle -> IO ()
+updateInfluxHandle params (InfluxHandle ref) = atomicWriteIORef ref params

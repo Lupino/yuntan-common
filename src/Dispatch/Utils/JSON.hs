@@ -14,7 +14,7 @@ import           Data.HashMap.Strict (delete, difference, insert, lookupDefault,
                                       union)
 
 replace :: Text -> Text -> Value -> Value
-replace okey nkey (Object v) = Object . delete okey $ insert nkey ov v
+replace okey nkey (Object v) = Object . insert nkey ov $ delete okey v
   where ov = lookupDefault Null okey v
 
 replace _ _ v = v

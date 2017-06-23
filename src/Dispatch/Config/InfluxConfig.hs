@@ -20,7 +20,7 @@ import           Data.Text               (Text)
 import           Control.Lens            ((&), (.~))
 import           Data.String             (fromString)
 import           Database.InfluxDB.Types (Credentials (..), authentication,
-                                          host, localServer, port)
+                                          defaultServer, host, port)
 import           Database.InfluxDB.Write (WriteParams, server, writeParams)
 
 import           Data.IORef              (IORef, atomicWriteIORef, newIORef,
@@ -70,7 +70,7 @@ genWriteParams conf | enable = Just $ writeParams db & server .~ s & authenticat
                                               )
                                     else Nothing
         enable = influxEnable conf
-        s      = localServer & host .~ h & port .~ p
+        s      = defaultServer & host .~ h & port .~ p
 
 newtype InfluxHandle = InfluxHandle (IORef (Maybe WriteParams))
 

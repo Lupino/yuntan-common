@@ -2,11 +2,11 @@ module Yuntan.Utils.Signature
   (
     signParams
   , signJSON
-  , hmacMD5
+  , hmacSHA256
   , signRaw
   ) where
 
-import           Crypto.Hash           (MD5)
+import           Crypto.Hash           (SHA256)
 import           Crypto.MAC            (HMAC (..), hmac)
 import           Data.Aeson            (Value (..))
 import           Data.Byteable         (toBytes)
@@ -20,14 +20,14 @@ import           Data.Text.Encoding    (encodeUtf8)
 import qualified Data.Text.Lazy        as LT (Text, toStrict, unpack)
 import qualified Data.Vector           as V (Vector, toList)
 
-hmacMD5 :: B.ByteString -> B.ByteString -> B.ByteString
-hmacMD5 solt = h2b . hmac solt
+hmacSHA256 :: B.ByteString -> B.ByteString -> B.ByteString
+hmacSHA256 solt = h2b . hmac solt
 
-h2b :: HMAC MD5 -> B.ByteString
+h2b :: HMAC SHA256 -> B.ByteString
 h2b = toBytes . hmacGetDigest
 
 signParams :: B.ByteString -> [(LT.Text, LT.Text)] -> B.ByteString
-signParams solt = hex . hmacMD5 solt . join . sort
+signParams solt = hex . hmacSHA256 solt . join . sort
   where sort :: [(LT.Text, LT.Text)] -> [(LT.Text, LT.Text)]
         sort = sortOn (\(k, _) -> LT.unpack k)
 
@@ -36,7 +36,7 @@ signParams solt = hex . hmacMD5 solt . join . sort
         join []         = B.empty
 
 signJSON :: B.ByteString -> Value -> B.ByteString
-signJSON solt = hex . hmacMD5 solt . v2b
+signJSON solt = hex . hmacSHA256 solt . v2b
   where sortHashMap :: LH.HashMap T.Text Value -> [(T.Text, Value)]
         sortHashMap = sortOn (\(k, _) -> T.unpack k) . LH.toList
 
@@ -57,7 +57,7 @@ signJSON solt = hex . hmacMD5 solt . v2b
         v2b Null         = B.empty
 
 signRaw :: B.ByteString -> [(B.ByteString, B.ByteString)] -> B.ByteString
-signRaw solt = hex . hmacMD5 solt . join . sort
+signRaw solt = hex . hmacSHA256 solt . join . sort
   where sort :: [(B.ByteString, B.ByteString)] -> [(B.ByteString, B.ByteString)]
         sort = sortOn (\(k, _) -> B.unpack k)
 

@@ -1,4 +1,4 @@
-module Dispatch.Utils.Haxl
+module Yuntan.Utils.Haxl
   (
     removeCache
   , clearCache

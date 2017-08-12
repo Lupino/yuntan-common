@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Dispatch.Types.OrderBy
+module Yuntan.Types.OrderBy
   (
     OrderBy
   , asc

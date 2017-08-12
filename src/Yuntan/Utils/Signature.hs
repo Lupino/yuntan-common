@@ -1,4 +1,4 @@
-module Dispatch.Utils.Signature
+module Yuntan.Utils.Signature
   (
     signParams
   , signJSON

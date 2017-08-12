@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Dispatch.Utils.Scotty
+module Yuntan.Utils.Scotty
   (
     maybeNotFound
   , eitherNotFound
@@ -13,16 +13,15 @@ module Dispatch.Utils.Scotty
   , safeParam
   ) where
 
-import           Dispatch.Types.ListResult (ListResult, fromListResult)
-import qualified Dispatch.Types.Result     as R (ErrResult, err, fromOkResult,
-                                                 ok)
-import           Network.HTTP.Types        (Status, status400, status404)
-import           Web.Scotty.Trans          (ActionT, Parsable, ScottyError,
-                                            json, param, rescue, status)
+import           Network.HTTP.Types      (Status, status400, status404)
+import           Web.Scotty.Trans        (ActionT, Parsable, ScottyError, json,
+                                          param, rescue, status)
+import           Yuntan.Types.ListResult (ListResult, fromListResult)
+import qualified Yuntan.Types.Result     as R (ErrResult, err, fromOkResult, ok)
 
-import           Data.Aeson                (ToJSON)
-import           Data.Text                 (Text)
-import qualified Data.Text.Lazy            as LT (Text)
+import           Data.Aeson              (ToJSON)
+import           Data.Text               (Text)
+import qualified Data.Text.Lazy          as LT (Text)
 
 maybeNotFound :: (ToJSON a, ScottyError e, Monad m) => String -> Maybe a -> ActionT e m ()
 maybeNotFound _ (Just a)  = json a

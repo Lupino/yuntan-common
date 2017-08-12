@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
-module Dispatch.Config.RedisConfig
+module Yuntan.Config.RedisConfig
   (
     RedisConfig (..)
   , genRedisConnection

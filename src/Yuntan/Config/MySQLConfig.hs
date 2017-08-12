@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
-module Dispatch.Config.MySQLConfig
+module Yuntan.Config.MySQLConfig
   (
     MySQLConfig (..)
   , genMySQLPool

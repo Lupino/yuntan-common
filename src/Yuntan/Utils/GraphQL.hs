@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Dispatch.Utils.GraphQL
+module Yuntan.Utils.GraphQL
   (
     getValue
   , getIntValue

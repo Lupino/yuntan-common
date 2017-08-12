@@ -1,8 +1,8 @@
-name:                dispatch-common
+name:                yuntan-common
 version:             0.1.0.0
 synopsis:            The common utils for haskell program.
 description:         Please see README.md
-homepage:            https://github.com/Lupino/dispatch-common#readme
+homepage:            https://github.com/Lupino/yuntan-common#readme
 license:             BSD3
 license-file:        LICENSE
 author:              Li Meng Jun
@@ -72,28 +72,28 @@ library
   hs-source-dirs:      src
 
   if flag(influxdb-config)
-    exposed-modules: Dispatch.Config.InfluxConfig
+    exposed-modules: Yuntan.Config.InfluxConfig
     build-depends: influxdb
                  , lens
                  , text
                  , aeson
 
   if flag(mysql-config)
-    exposed-modules: Dispatch.Config.MySQLConfig
+    exposed-modules: Yuntan.Config.MySQLConfig
     build-depends: mysql-simple
                  , resource-pool
                  , time
                  , aeson
 
   if flag(redis-config)
-    exposed-modules: Dispatch.Config.RedisConfig
+    exposed-modules: Yuntan.Config.RedisConfig
     build-depends: hedis
                  , network
                  , time
                  , aeson
 
   if flag(graphql-utils)
-    exposed-modules: Dispatch.Utils.GraphQL
+    exposed-modules: Yuntan.Utils.GraphQL
     build-depends: graphql
                  , aeson
                  , unordered-containers
@@ -102,24 +102,24 @@ library
                  , haxl
 
   if flag(haxl-utils)
-    exposed-modules: Dispatch.Utils.Haxl
+    exposed-modules: Yuntan.Utils.Haxl
     build-depends: haxl
                  , unordered-containers
 
   if flag(json-utils) || flag(list-result-type) || flag(result-type) || flag(scotty-utils)
-    exposed-modules: Dispatch.Utils.JSON
+    exposed-modules: Yuntan.Utils.JSON
     build-depends: aeson
                  , unordered-containers
                  , text
 
   if flag(scotty-utils)
-    exposed-modules: Dispatch.Utils.Scotty
+    exposed-modules: Yuntan.Utils.Scotty
     build-depends: scotty
                  , http-types
                  , aeson
 
   if flag(signature-utils)
-    exposed-modules: Dispatch.Utils.Signature
+    exposed-modules: Yuntan.Utils.Signature
     build-depends: cryptohash
                  , hex
                  , byteable
@@ -130,17 +130,17 @@ library
                  , text
 
   if flag(result-type) || flag(scotty-utils)
-    exposed-modules: Dispatch.Types.Result
+    exposed-modules: Yuntan.Types.Result
     build-depends: aeson
 
   if flag(list-result-type) || flag(scotty-utils)
-    exposed-modules: Dispatch.Types.ListResult
+    exposed-modules: Yuntan.Types.ListResult
     build-depends: aeson
                  , unordered-containers
                  , text
 
   if flag(order-by-type)
-    exposed-modules: Dispatch.Types.OrderBy
+    exposed-modules: Yuntan.Types.OrderBy
     build-depends: hashable
 
   build-depends:       base >= 4.7 && < 5
@@ -148,4 +148,4 @@ library
 
 source-repository head
   type:     git
-  location: https://github.com/Lupino/dispatch-common
+  location: https://github.com/Lupino/yuntan-common

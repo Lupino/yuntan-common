@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
-module Dispatch.Config.InfluxConfig
+module Yuntan.Config.InfluxConfig
   (
     InfluxConfig (..)
   , genWriteParams

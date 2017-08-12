@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
-module Dispatch.Types.ListResult
+module Yuntan.Types.ListResult
   (
     From
   , Size
@@ -14,13 +14,13 @@ module Dispatch.Types.ListResult
   , fromListResult
   ) where
 
-import           Data.Aeson          (FromJSON (..), Result (..), ToJSON (..),
-                                      Value, fromJSON, object, withObject, (.:),
-                                      (.=))
-import           Data.Int            (Int64)
-import           Data.Text           (Text)
+import           Data.Aeson        (FromJSON (..), Result (..), ToJSON (..),
+                                    Value, fromJSON, object, withObject, (.:),
+                                    (.=))
+import           Data.Int          (Int64)
+import           Data.Text         (Text)
 
-import           Dispatch.Utils.JSON (replace)
+import           Yuntan.Utils.JSON (replace)
 
 type From        = Int64
 type Size        = Int64

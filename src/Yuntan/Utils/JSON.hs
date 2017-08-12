@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Dispatch.Utils.JSON
+module Yuntan.Utils.JSON
   (
     replace
   , unionValue

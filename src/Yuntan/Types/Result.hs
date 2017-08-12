@@ -2,7 +2,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
-module Dispatch.Types.Result
+module Yuntan.Types.Result
   (
     OkResult (..)
   , ErrResult (..)
@@ -12,11 +12,11 @@ module Dispatch.Types.Result
   , toOkResult
   ) where
 
-import           Data.Aeson          (FromJSON (..), Result (..), ToJSON (..),
-                                      Value, fromJSON, object, withObject, (.:),
-                                      (.=))
-import           Data.Text           (Text)
-import           Dispatch.Utils.JSON (replace)
+import           Data.Aeson        (FromJSON (..), Result (..), ToJSON (..),
+                                    Value, fromJSON, object, withObject, (.:),
+                                    (.=))
+import           Data.Text         (Text)
+import           Yuntan.Utils.JSON (replace)
 
 data OkResult a = OkResult { getValue :: a }
   deriving (Show)

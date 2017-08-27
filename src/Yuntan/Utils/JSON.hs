@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Yuntan.Utils.JSON
   (
     replace

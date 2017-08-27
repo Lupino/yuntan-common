@@ -89,5 +89,5 @@ newRedisHandle conn = RedisHandle <$> newIORef conn
 getRedis :: RedisHandle -> IO (Maybe Connection)
 getRedis (RedisHandle ref) = readIORef ref
 
-updateRedisHandle :: (Maybe Connection) -> RedisHandle -> IO ()
+updateRedisHandle :: Maybe Connection -> RedisHandle -> IO ()
 updateRedisHandle conn (RedisHandle ref) = atomicWriteIORef ref conn

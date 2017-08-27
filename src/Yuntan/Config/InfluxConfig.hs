@@ -64,10 +64,10 @@ genWriteParams conf | enable = Just $ writeParams db & server .~ s & authenticat
   where db     = fromString $ influxDBName conf
         h      =  influxHost conf
         p      =  influxPort conf
-        auth   = if influxAuth conf then Just (Credentials { _user = influxUser conf
-                                                           , _password = influxPasswd conf
-                                                           }
-                                              )
+        auth   = if influxAuth conf then Just Credentials { _user = influxUser conf
+                                                          , _password = influxPasswd conf
+                                                          }
+
                                     else Nothing
         enable = influxEnable conf
         s      = defaultServer & host .~ h & port .~ p
@@ -80,5 +80,5 @@ newInfluxHandle params = InfluxHandle <$> newIORef params
 getInflux :: InfluxHandle -> IO (Maybe WriteParams)
 getInflux (InfluxHandle ref) = readIORef ref
 
-updateInfluxHandle :: (Maybe WriteParams) -> InfluxHandle -> IO ()
+updateInfluxHandle :: Maybe WriteParams -> InfluxHandle -> IO ()
 updateInfluxHandle params (InfluxHandle ref) = atomicWriteIORef ref params

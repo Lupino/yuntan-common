@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
@@ -18,7 +17,7 @@ import           Data.Aeson        (FromJSON (..), Result (..), ToJSON (..),
 import           Data.Text         (Text)
 import           Yuntan.Utils.JSON (replace)
 
-data OkResult a = OkResult { getValue :: a }
+newtype OkResult a = OkResult { getValue :: a }
   deriving (Show)
 
 instance (FromJSON a) => FromJSON (OkResult a) where
@@ -29,7 +28,7 @@ instance (FromJSON a) => FromJSON (OkResult a) where
 instance (ToJSON a) => ToJSON (OkResult a) where
   toJSON OkResult{..} = object [ "result" .= getValue ]
 
-data ErrResult = ErrResult { errMsg :: String }
+newtype ErrResult = ErrResult { errMsg :: String }
   deriving (Show)
 
 instance FromJSON ErrResult where
@@ -48,7 +47,7 @@ ok :: a -> OkResult a
 ok = OkResult
 
 toOkResult :: FromJSON a => Text -> Value -> Maybe (OkResult a)
-toOkResult okey v = do
+toOkResult okey v =
   case fromJSON (replace okey "result" v) of
     Success v' -> Just v'
     _          -> Nothing

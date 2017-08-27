@@ -57,17 +57,17 @@ emptyListResult = ListResult { getFrom = 0
                              }
 
 merge :: [a] -> ListResult b -> ListResult a
-merge t (ListResult { getFrom = from
-                    , getSize = size
-                    , getTotal = total
-                    }) = ListResult { getFrom = from
-                                    , getSize = size
-                                    , getTotal = total
-                                    , getResult = t
-                                    }
+merge t ListResult { getFrom = from
+                   , getSize = size
+                   , getTotal = total
+                   } = ListResult { getFrom = from
+                                  , getSize = size
+                                  , getTotal = total
+                                  , getResult = t
+                                  }
 
 toListResult :: FromJSON a => Text -> Value -> Maybe (ListResult a)
-toListResult okey v = do
+toListResult okey v =
   case fromJSON (replace okey "result" v) of
     Success v' -> Just v'
     _          -> Nothing

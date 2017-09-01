@@ -51,10 +51,15 @@ signJSON solt = hex . hmacSHA256 solt . v2b
         v2b (Object v)   = (joinList . sortHashMap) v
         v2b (Array v)    = joinArray v
         v2b (String v)   = encodeUtf8 v
-        v2b (Number v)   = B.pack $ show v
+        v2b (Number v)   = B.pack . num $ show v
         v2b (Bool True)  = B.pack "true"
         v2b (Bool False) = B.pack "false"
         v2b Null         = B.empty
+
+        num :: String -> String
+        num []         = []
+        num ['.', '0'] = []
+        num (x:xs)     = x : num xs
 
 signRaw :: B.ByteString -> [(B.ByteString, B.ByteString)] -> B.ByteString
 signRaw solt = hex . hmacSHA256 solt . join . sort

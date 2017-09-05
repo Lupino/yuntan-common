@@ -80,6 +80,7 @@ library
 
   if flag(mysql-config)
     exposed-modules: Yuntan.Config.MySQLConfig
+                   , Yuntan.Types.HasMySQL
     build-depends: mysql-simple
                  , resource-pool
                  , time

@@ -15,6 +15,7 @@ import qualified Data.ByteString.Char8 as B (ByteString, concat, empty, pack,
 import qualified Data.HashMap.Lazy     as LH (HashMap, toList)
 import           Data.Hex              (hex)
 import           Data.List             (sortOn)
+import           Data.Scientific       (Scientific, floatingOrInteger)
 import qualified Data.Text             as T (Text, unpack)
 import           Data.Text.Encoding    (encodeUtf8)
 import qualified Data.Text.Lazy        as LT (Text, toStrict, unpack)
@@ -51,15 +52,15 @@ signJSON solt = hex . hmacSHA256 solt . v2b
         v2b (Object v)   = (joinList . sortHashMap) v
         v2b (Array v)    = joinArray v
         v2b (String v)   = encodeUtf8 v
-        v2b (Number v)   = B.pack . num $ show v
+        v2b (Number v)   = B.pack $ showNumber v
         v2b (Bool True)  = B.pack "true"
         v2b (Bool False) = B.pack "false"
         v2b Null         = B.empty
 
-        num :: String -> String
-        num []         = []
-        num ['.', '0'] = []
-        num (x:xs)     = x : num xs
+        showNumber :: Scientific -> String
+        showNumber v = case floatingOrInteger v of
+                         Left n  -> show n
+                         Right n -> show n
 
 signRaw :: B.ByteString -> [(B.ByteString, B.ByteString)] -> B.ByteString
 signRaw solt = hex . hmacSHA256 solt . join . sort

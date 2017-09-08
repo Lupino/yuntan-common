@@ -129,6 +129,7 @@ library
                  , aeson
                  , unordered-containers
                  , text
+                 , scientific
 
   if flag(result-type) || flag(scotty-utils)
     exposed-modules: Yuntan.Types.Result

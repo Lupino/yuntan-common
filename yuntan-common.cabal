@@ -118,6 +118,7 @@ library
     build-depends: scotty
                  , http-types
                  , aeson
+                 , haxl
 
   if flag(signature-utils)
     exposed-modules: Yuntan.Utils.Signature

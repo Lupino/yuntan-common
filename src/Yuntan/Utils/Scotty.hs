@@ -19,7 +19,9 @@ import           Network.HTTP.Types      (Status, status400, status404)
 import           Web.Scotty.Trans        (ActionT, Parsable, ScottyError,
                                           ScottyT, json, param, rescue, status)
 
+import           Control.Monad.IO.Class  (MonadIO (..))
 import           Haxl.Core               (GenHaxl)
+import           Haxl.Core.Monad         (unsafeLiftIO)
 
 import           Yuntan.Types.ListResult (ListResult, fromListResult)
 import qualified Yuntan.Types.Result     as R (ErrResult, err, fromOkResult, ok)
@@ -60,3 +62,6 @@ safeParam key def = param key `rescue` (\_ -> return def)
 
 type ActionH u b = ActionT LT.Text (GenHaxl u) b
 type ScottyH u b = ScottyT LT.Text (GenHaxl u) b
+
+instance MonadIO (GenHaxl u) where
+  liftIO = unsafeLiftIO

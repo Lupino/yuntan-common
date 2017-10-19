@@ -24,7 +24,6 @@ import           Network.Wreq            (Response, asJSON, responseBody)
 import           Yuntan.Types.ListResult (ListResult, emptyListResult,
                                           toListResult)
 import           Yuntan.Types.Result     (ErrResult, OkResult, err, toOkResult)
-import           Yuntan.Utils.Signature  (signJSON, signParams, signRaw)
 
 responseValue :: IO (Response a) -> IO a
 responseValue req = do

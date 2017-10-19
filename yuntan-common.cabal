@@ -137,11 +137,11 @@ library
                  , text
                  , scientific
 
-  if flag(result-type) || flag(scotty-utils)
+  if flag(result-type) || flag(scotty-utils) || flag(wreq-utils)
     exposed-modules: Yuntan.Types.Result
     build-depends: aeson
 
-  if flag(list-result-type) || flag(scotty-utils)
+  if flag(list-result-type) || flag(scotty-utils) || flag(wreq-utils)
     exposed-modules: Yuntan.Types.ListResult
     build-depends: aeson
                  , unordered-containers
@@ -155,6 +155,8 @@ library
     exposed-modules: Yuntan.Utils.Wreq
     build-depends: wreq
                  , http-client
+                 , lens
+                 , bytestring
 
   build-depends:       base >= 4.7 && < 5
   default-language:    Haskell2010

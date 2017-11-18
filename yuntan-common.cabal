@@ -48,6 +48,11 @@ flag scotty-utils
     default: False
     manual: True
 
+flag scotty-type
+    description: Scotty type
+    default: False
+    manual: True
+
 flag signature-utils
     description: Signature utils
     default: False
@@ -123,6 +128,10 @@ library
     build-depends: scotty
                  , http-types
                  , aeson
+
+  if flag(scotty-type)
+    exposed-modules: Yuntan.Types.Scotty
+    build-depends: scotty
                  , haxl
 
   if flag(signature-utils)

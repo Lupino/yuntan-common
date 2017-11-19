@@ -41,16 +41,16 @@ tryResponse :: IO (Response a) -> IO (Either ErrResult (Response a))
 tryResponse req = do
   e <- try req
   case e of
-    Left (HttpExceptionRequest _ content) -> do
+    Left (HttpExceptionRequest _ content) ->
       case content of
-        (StatusCodeException _ body) -> do
+        (StatusCodeException _ body) ->
           case decode . LB.fromStrict $ body of
             Just er -> return $ Left er
             Nothing -> return . Left . err . B.unpack $ body
         ResponseTimeout -> return . Left . err $ "ResponseTimeout"
         other -> return . Left . err $ show other
 
-    Left (InvalidUrlException _ _) -> do
+    Left (InvalidUrlException _ _) ->
       return . Left . err $ "InvalidUrlException"
     Right r  -> return $ Right r
 

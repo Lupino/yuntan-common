@@ -13,13 +13,10 @@ module Yuntan.Utils.Wreq
   , responseListResult
   , responseListResult_
   , tryResponse
-  , Error
-  , throwError
-  , errorMsg
   , eitherToError
   ) where
 
-import           Control.Exception       (Exception, throwIO, try)
+import           Control.Exception       (try)
 import           Control.Lens            ((^.), (^?))
 import           Data.Aeson              (FromJSON (..), decode)
 import qualified Data.ByteString.Char8   as B (unpack)
@@ -30,26 +27,15 @@ import           Network.HTTP.Client     (HttpException (..),
 import           Network.Wreq            (Response, asJSON, responseBody)
 import           Yuntan.Types.ListResult (ListResult, emptyListResult,
                                           toListResult)
-import           Yuntan.Types.Result     (ErrResult (..), OkResult, err,
+import           Yuntan.Types.Result     (ErrResult, OkResult, err, throwError,
                                           toOkResult)
-
-newtype Error = Error String
-  deriving (Show, Eq, Ord)
-
-instance Exception Error
-
-throwError :: String -> IO a
-throwError e = throwIO $ Error e
 
 eitherToError :: IO (Either ErrResult a) -> IO a
 eitherToError io  = do
   r <- io
   case r of
-    Left e  -> throwError $ errMsg e
+    Left e  -> throwError e
     Right v -> pure v
-
-errorMsg :: Error -> String
-errorMsg (Error e) = e
 
 responseValue :: IO (Response a) -> IO a
 responseValue req = do

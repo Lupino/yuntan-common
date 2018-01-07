@@ -9,8 +9,10 @@ module Yuntan.Types.Result
   , ok
   , fromOkResult
   , toOkResult
+  , throwError
   ) where
 
+import           Control.Exception (Exception, throwIO)
 import           Data.Aeson        (FromJSON (..), Result (..), ToJSON (..),
                                     Value, fromJSON, object, withObject, (.:),
                                     (.=))
@@ -29,7 +31,12 @@ instance (ToJSON a) => ToJSON (OkResult a) where
   toJSON OkResult{..} = object [ "result" .= getValue ]
 
 newtype ErrResult = ErrResult { errMsg :: String }
-  deriving (Show)
+  deriving (Show, Eq, Ord)
+
+instance Exception ErrResult
+
+throwError :: ErrResult -> IO a
+throwError e = throwIO e
 
 instance FromJSON ErrResult where
   parseJSON = withObject "ErrResult" $ \o -> do

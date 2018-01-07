@@ -80,11 +80,11 @@ responseOkResult okey req = do
                  Just v  -> return $ Right v
                  Nothing -> return . Left $ err "Invalid Result"
 
-responseListResult :: FromJSON a => Text -> IO (Response LB.ByteString) -> IO (ListResult a)
+responseListResult :: FromJSON a => Text -> IO (Response LB.ByteString) -> IO (Either ErrResult (ListResult a))
 responseListResult okey req = do
-  e <- try $ asJSON =<< req
-  case e of
-    Left (_ :: HttpException) -> return emptyListResult
-    Right r                   -> case toListResult okey (r ^. responseBody) of
-                                   Just v  -> return v
-                                   Nothing -> return emptyListResult
+  rsp <- responseEitherJSON req
+  case rsp of
+    Left e  -> return $ Left e
+    Right r -> case toListResult okey r of
+                 Just v  -> return $ Right v
+                 Nothing -> return . Left $ err "Invalid Result"

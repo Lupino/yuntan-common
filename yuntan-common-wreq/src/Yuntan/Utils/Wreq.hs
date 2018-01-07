@@ -7,12 +7,19 @@ module Yuntan.Utils.Wreq
   , responseEither
   , responseEither'
   , responseEitherJSON
+  , responseJSON
   , responseOkResult
+  , responseOkResult_
   , responseListResult
+  , responseListResult_
   , tryResponse
+  , Error
+  , throwError
+  , errorMsg
+  , eitherToError
   ) where
 
-import           Control.Exception       (try)
+import           Control.Exception       (Exception, throwIO, try)
 import           Control.Lens            ((^.), (^?))
 import           Data.Aeson              (FromJSON (..), decode)
 import qualified Data.ByteString.Char8   as B (unpack)
@@ -23,7 +30,26 @@ import           Network.HTTP.Client     (HttpException (..),
 import           Network.Wreq            (Response, asJSON, responseBody)
 import           Yuntan.Types.ListResult (ListResult, emptyListResult,
                                           toListResult)
-import           Yuntan.Types.Result     (ErrResult, OkResult, err, toOkResult)
+import           Yuntan.Types.Result     (ErrResult (..), OkResult, err,
+                                          toOkResult)
+
+newtype Error = Error String
+  deriving (Show, Eq, Ord)
+
+instance Exception Error
+
+throwError :: String -> IO a
+throwError e = throwIO $ Error e
+
+eitherToError :: IO (Either ErrResult a) -> IO a
+eitherToError io  = do
+  r <- io
+  case r of
+    Left e  -> throwError $ errMsg e
+    Right v -> pure v
+
+errorMsg :: Error -> String
+errorMsg (Error e) = e
 
 responseValue :: IO (Response a) -> IO a
 responseValue req = do
@@ -71,6 +97,9 @@ responseEither' req = do
 responseEitherJSON :: FromJSON a => IO (Response LB.ByteString) -> IO (Either ErrResult a)
 responseEitherJSON req = responseEither $ asJSON =<< req
 
+responseJSON :: FromJSON a => IO (Response LB.ByteString) -> IO a
+responseJSON = eitherToError . responseEitherJSON
+
 responseOkResult :: FromJSON a => Text -> IO (Response LB.ByteString) -> IO (Either ErrResult (OkResult a))
 responseOkResult okey req = do
   rsp <- responseEitherJSON req
@@ -80,6 +109,9 @@ responseOkResult okey req = do
                  Just v  -> return $ Right v
                  Nothing -> return . Left $ err "Invalid Result"
 
+responseOkResult_ :: FromJSON a => Text -> IO (Response LB.ByteString) -> IO (OkResult a)
+responseOkResult_ okey req = eitherToError (responseOkResult okey req)
+
 responseListResult :: FromJSON a => Text -> IO (Response LB.ByteString) -> IO (Either ErrResult (ListResult a))
 responseListResult okey req = do
   rsp <- responseEitherJSON req
@@ -88,3 +120,6 @@ responseListResult okey req = do
     Right r -> case toListResult okey r of
                  Just v  -> return $ Right v
                  Nothing -> return . Left $ err "Invalid Result"
+
+responseListResult_ :: FromJSON a => Text -> IO (Response LB.ByteString) -> IO (ListResult a)
+responseListResult_ okey req = eitherToError (responseListResult okey req)

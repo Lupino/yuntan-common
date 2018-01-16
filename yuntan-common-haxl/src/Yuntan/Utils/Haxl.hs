@@ -11,7 +11,7 @@ import           Data.Typeable       (Typeable, typeOf)
 import           Haxl.Core           (Env (..), GenHaxl (..), env, initEnv,
                                       withEnv)
 import           Haxl.Core.Monad     (unsafeLiftIO)
-import           Haxl.Core.Types     (DataCache (..), emptyDataCache)
+import           Haxl.Core.DataCache (DataCache (..), emptyDataCache)
 
 removeCache :: Typeable k => k -> GenHaxl u ()
 removeCache k = do

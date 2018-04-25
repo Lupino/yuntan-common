@@ -36,7 +36,7 @@ newtype ErrResult = ErrResult { errMsg :: String }
 instance Exception ErrResult
 
 throwError :: ErrResult -> IO a
-throwError e = throwIO e
+throwError = throwIO
 
 instance FromJSON ErrResult where
   parseJSON = withObject "ErrResult" $ \o -> do

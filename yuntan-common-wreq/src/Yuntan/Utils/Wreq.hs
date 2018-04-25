@@ -25,8 +25,7 @@ import           Data.Text               (Text)
 import           Network.HTTP.Client     (HttpException (..),
                                           HttpExceptionContent (..))
 import           Network.Wreq            (Response, asJSON, responseBody)
-import           Yuntan.Types.ListResult (ListResult, emptyListResult,
-                                          toListResult)
+import           Yuntan.Types.ListResult (ListResult, toListResult)
 import           Yuntan.Types.Result     (ErrResult, OkResult, err, throwError,
                                           toOkResult)
 

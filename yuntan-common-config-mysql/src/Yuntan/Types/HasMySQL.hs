@@ -15,6 +15,8 @@ module Yuntan.Types.HasMySQL
   , tablePrefix
   , SimpleEnv
   , simpleEnv
+  , otherEnv
+  , SimpleLruEnv
 
   , VersionList
   , mergeDatabase
@@ -69,16 +71,19 @@ class HasMySQL u where
   mysqlPool   :: u -> Pool Connection
   tablePrefix :: u -> TablePrefix
 
-data SimpleEnv = SimpleEnv { pc :: Pool Connection
-                           , pf :: String
-                           }
+data SimpleEnv u = SimpleEnv { pc       :: Pool Connection
+                             , pf       :: String
+                             , otherEnv :: u
+                             }
 
-instance HasMySQL SimpleEnv where
+instance HasMySQL (SimpleEnv u) where
   mysqlPool = pc
   tablePrefix = pf
 
-simpleEnv :: Pool Connection -> TablePrefix -> SimpleEnv
-simpleEnv pool prefix = SimpleEnv{pc=pool, pf = prefix}
+simpleEnv :: Pool Connection -> TablePrefix -> u -> SimpleEnv u
+simpleEnv pool prefix env0 = SimpleEnv{pc=pool, pf = prefix, otherEnv = env0}
+
+type SimpleLruEnv = SimpleEnv (Maybe (LruHandle String ByteString))
 
 createVersionTable :: MySQL ()
 createVersionTable prefix conn = void $ execute_ conn sql

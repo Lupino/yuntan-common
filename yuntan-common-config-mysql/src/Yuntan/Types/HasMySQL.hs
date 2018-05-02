@@ -15,8 +15,9 @@ module Yuntan.Types.HasMySQL
   , tablePrefix
   , SimpleEnv
   , simpleEnv
+
+  , HasOtherEnv
   , otherEnv
-  , SimpleLruEnv
 
   , VersionList
   , mergeDatabase
@@ -33,6 +34,8 @@ module Yuntan.Types.HasMySQL
   , setConfig'
   , getConfig'
   , getConfigJSON'
+  , ConfigLru
+  , fillValue
 
   , cached'
   , cached
@@ -44,7 +47,7 @@ import           Control.Concurrent.Async
 import           Control.Concurrent.QSem
 import qualified Control.Exception        (SomeException, bracket_, try)
 import           Control.Monad            (void)
-import           Data.Aeson               (FromJSON, decodeStrict)
+import           Data.Aeson               (FromJSON, Value, decodeStrict)
 import           Data.ByteString          (ByteString)
 import           Data.Hashable            (Hashable (..))
 import           Data.Int                 (Int64)
@@ -63,6 +66,7 @@ import           Data.LruCache
 import           Data.LruCache.Internal   (LruCache (..))
 import           Data.LruCache.IO         (LruHandle (..))
 import           Prelude                  hiding (lookup)
+import           Yuntan.Utils.JSON        (unionValue)
 
 type TablePrefix = String
 
@@ -72,19 +76,23 @@ class HasMySQL u where
   mysqlPool   :: u -> Pool Connection
   tablePrefix :: u -> TablePrefix
 
-data SimpleEnv u = SimpleEnv { pc       :: Pool Connection
-                             , pf       :: String
-                             , otherEnv :: u
+class HasOtherEnv u a where
+  otherEnv :: a -> u
+
+data SimpleEnv u = SimpleEnv { pc :: Pool Connection
+                             , pf :: String
+                             , pu :: u
                              }
 
 instance HasMySQL (SimpleEnv u) where
   mysqlPool = pc
   tablePrefix = pf
 
-simpleEnv :: Pool Connection -> TablePrefix -> u -> SimpleEnv u
-simpleEnv pool prefix env0 = SimpleEnv{pc=pool, pf = prefix, otherEnv = env0}
+instance HasOtherEnv u (SimpleEnv u) where
+  otherEnv = pu
 
-type SimpleLruEnv = SimpleEnv (Maybe (LruHandle String ByteString))
+simpleEnv :: Pool Connection -> TablePrefix -> u -> SimpleEnv u
+simpleEnv pool prefix env0 = SimpleEnv{pc=pool, pf = prefix, pu = env0}
 
 createVersionTable :: MySQL ()
 createVersionTable prefix conn = void $ execute_ conn sql
@@ -223,13 +231,15 @@ setConfig k = uncachedRequest . SetConfig k
 getConfigJSON :: (HasMySQL u, FromJSON a) => String -> GenHaxl u (Maybe a)
 getConfigJSON k = maybe Nothing decodeStrict <$> getConfig k
 
-getConfig' :: HasMySQL u => (u -> Maybe (LruHandle String ByteString)) -> String -> GenHaxl u (Maybe ByteString)
+type ConfigLru = Maybe (LruHandle String ByteString)
+
+getConfig' :: HasMySQL u => (u -> ConfigLru) -> String -> GenHaxl u (Maybe ByteString)
 getConfig' lru k = cached lru k (getConfig k)
 
-getConfigJSON' :: (HasMySQL u, FromJSON a) => (u -> Maybe (LruHandle String ByteString)) -> String -> GenHaxl u (Maybe a)
+getConfigJSON' :: (HasMySQL u, FromJSON a) => (u -> ConfigLru) -> String -> GenHaxl u (Maybe a)
 getConfigJSON' lru k = maybe Nothing decodeStrict <$> cached lru k (getConfig k)
 
-setConfig' :: HasMySQL u => (u -> Maybe (LruHandle String ByteString)) -> String -> ByteString -> GenHaxl u ()
+setConfig' :: HasMySQL u => (u -> ConfigLru) -> String -> ByteString -> GenHaxl u ()
 setConfig' lru k v = do
   remove lru k
   setConfig k v
@@ -288,3 +298,18 @@ remove lru k = do
 
         if member k queue then (c { lruSize = size - 1, lruQueue = delete k queue }, ())
                 else (c, ())
+
+fillValue
+  :: HasMySQL u
+  => (u -> ConfigLru)
+  -> String
+  -> (a -> Value)
+  -> (Value -> a -> a)
+  -> Maybe a
+  -> GenHaxl u (Maybe a)
+fillValue _ _ _ _ Nothing = return Nothing
+fillValue lru k g f (Just v) = do
+  ex <- getConfigJSON' lru k
+  case ex of
+    Nothing  -> return $ Just v
+    Just ex' -> return $ Just $ f (unionValue (g v) ex') v

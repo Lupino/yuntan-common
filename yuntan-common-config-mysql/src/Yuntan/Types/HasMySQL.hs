@@ -28,9 +28,11 @@ module Yuntan.Types.HasMySQL
 
   , setConfig
   , getConfig
+  , getConfigJSON
 
   , setConfig'
   , getConfig'
+  , getConfigJSON'
 
   , cached'
   , cached
@@ -42,9 +44,8 @@ import           Control.Concurrent.Async
 import           Control.Concurrent.QSem
 import qualified Control.Exception        (SomeException, bracket_, try)
 import           Control.Monad            (void)
-import           Data.Aeson               (Value (..), decodeStrict, encode)
+import           Data.Aeson               (FromJSON, decodeStrict)
 import           Data.ByteString          (ByteString)
-import           Data.ByteString.Lazy     (toStrict)
 import           Data.Hashable            (Hashable (..))
 import           Data.Int                 (Int64)
 import           Data.Maybe               (fromMaybe, listToMaybe)
@@ -219,8 +220,14 @@ setConfig :: HasMySQL u => String -> ByteString -> GenHaxl u ()
 getConfig   = dataFetch . GetConfig
 setConfig k = uncachedRequest . SetConfig k
 
+getConfigJSON :: (HasMySQL u, FromJSON a) => String -> GenHaxl u (Maybe a)
+getConfigJSON k = maybe Nothing decodeStrict <$> getConfig k
+
 getConfig' :: HasMySQL u => (u -> Maybe (LruHandle String ByteString)) -> String -> GenHaxl u (Maybe ByteString)
 getConfig' lru k = cached lru k (getConfig k)
+
+getConfigJSON' :: (HasMySQL u, FromJSON a) => (u -> Maybe (LruHandle String ByteString)) -> String -> GenHaxl u (Maybe a)
+getConfigJSON' lru k = maybe Nothing decodeStrict <$> cached lru k (getConfig k)
 
 setConfig' :: HasMySQL u => (u -> Maybe (LruHandle String ByteString)) -> String -> ByteString -> GenHaxl u ()
 setConfig' lru k v = do

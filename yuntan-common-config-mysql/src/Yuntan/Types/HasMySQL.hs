@@ -195,11 +195,11 @@ doFetch _state _flags _user = AsyncFetch $ \reqs inner -> do
   mapM_ wait asyncs
 
 fetchAsync :: HasMySQL u => QSem -> u -> BlockedFetch ConfigReq -> IO (Async ())
-fetchAsync sem env req = async $
+fetchAsync sem env0 req = async $
   Control.Exception.bracket_ (waitQSem sem) (signalQSem sem) $ withResource pool $ fetchSync req prefix
 
-  where pool   = mysqlPool env
-        prefix = tablePrefix env
+  where pool   = mysqlPool env0
+        prefix = tablePrefix env0
 
 fetchSync :: BlockedFetch ConfigReq -> MySQL ()
 fetchSync (BlockedFetch req rvar) prefix conn = do

@@ -40,6 +40,7 @@ module Yuntan.Types.HasMySQL
   , cached'
   , cached
   , remove
+  , updateLruHandle
   ) where
 
 
@@ -298,6 +299,10 @@ remove lru k = do
 
         if member k queue then (c { lruSize = size - 1, lruQueue = delete k queue }, ())
                 else (c, ())
+
+updateLruHandle :: (Hashable k, Ord k) => LruHandle k v -> Int -> IO ()
+updateLruHandle (LruHandle ref) size =
+  atomicModifyIORef' ref $ const (empty size, ())
 
 fillValue
   :: HasMySQL u

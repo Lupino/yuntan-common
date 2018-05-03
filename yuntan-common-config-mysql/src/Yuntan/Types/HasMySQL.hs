@@ -36,6 +36,7 @@ module Yuntan.Types.HasMySQL
   , getConfigJSON'
   , ConfigLru
   , fillValue
+  , fillValue_
 
   , cached'
   , cached
@@ -52,7 +53,7 @@ import           Data.Aeson               (FromJSON, Value, decodeStrict)
 import           Data.ByteString          (ByteString)
 import           Data.Hashable            (Hashable (..))
 import           Data.Int                 (Int64)
-import           Data.Maybe               (fromMaybe, listToMaybe)
+import           Data.Maybe               (listToMaybe)
 import           Data.Pool                (Pool, withResource)
 import           Data.String              (fromString)
 import           Data.Typeable            (Typeable)
@@ -312,9 +313,19 @@ fillValue
   -> (Value -> a -> a)
   -> Maybe a
   -> GenHaxl u (Maybe a)
-fillValue _ _ _ _ Nothing = return Nothing
-fillValue lru k g f (Just v) = do
+fillValue _ _ _ _ Nothing    = return Nothing
+fillValue lru k g f (Just v) = Just <$> fillValue_ lru k g f v
+
+fillValue_
+  :: HasMySQL u
+  => (u -> ConfigLru)
+  -> String
+  -> (a -> Value)
+  -> (Value -> a -> a)
+  -> a
+  -> GenHaxl u a
+fillValue_ lru k g f v = do
   ex <- getConfigJSON' lru k
   case ex of
-    Nothing  -> return $ Just v
-    Just ex' -> return $ Just $ f (unionValue (g v) ex') v
+    Nothing  -> return v
+    Just ex' -> return $ f (unionValue (g v) ex') v

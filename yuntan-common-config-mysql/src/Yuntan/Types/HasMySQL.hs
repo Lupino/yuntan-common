@@ -57,7 +57,7 @@ import           Database.MySQL.Simple    (Connection, Only (..), execute,
 import           Haxl.Core                hiding (fetchReq)
 
 import           Yuntan.Utils.JSON        (unionValue)
-import           Yuntan.Utils.LruCache    (LruHandle, cached, cached', remove)
+import           Yuntan.Utils.LruCache    (LruHandle, cached, remove)
 
 type TablePrefix = String
 

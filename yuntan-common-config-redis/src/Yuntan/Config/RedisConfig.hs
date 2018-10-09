@@ -58,15 +58,16 @@ defaultRedisConfig = RedisConfig { redisHost           = "127.0.0.1"
 genRedisConnection :: RedisConfig -> IO (Maybe Connection)
 genRedisConnection conf =
   if enable then do
-            conn <- connect $ defaultConnectInfo { connectHost           = h
-                                                 , connectPort           = PortNumber p
-                                                 , connectDatabase       = db
-                                                 , connectMaxConnections = maxConnections
-                                                 , connectMaxIdleTime    = maxIdleTime
-                                                 }
+      conn <- connect $ defaultConnectInfo
+        { connectHost           = h
+        , connectPort           = PortNumber p
+        , connectDatabase       = db
+        , connectMaxConnections = maxConnections
+        , connectMaxIdleTime    = maxIdleTime
+        }
 
-            return (Just conn)
-            else return Nothing
+      return (Just conn)
+  else return Nothing
 
   where db             = redisDB             conf
         h              = redisHost           conf

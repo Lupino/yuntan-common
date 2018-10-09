@@ -6,19 +6,13 @@ module Yuntan.Config.RedisConfig
     RedisConfig (..)
   , genRedisConnection
   , defaultRedisConfig
-  , newRedisHandle
-  , updateRedisHandle
-  , getRedis
-  , RedisHandle
   ) where
 import           Data.Aeson     (FromJSON, parseJSON, withObject, (.!=), (.:?))
 import           Data.Time      (NominalDiffTime)
-
 import           Database.Redis (ConnectInfo (..), Connection, connect,
                                  defaultConnectInfo)
 import           Network        (PortID (PortNumber))
 
-import           Data.IORef     (IORef, atomicWriteIORef, newIORef, readIORef)
 
 
 
@@ -80,14 +74,3 @@ genRedisConnection conf =
         enable         = redisEnable         conf
         maxConnections = redisMaxConnections conf
         maxIdleTime    = redisMaxIdleTime    conf
-
-newtype RedisHandle = RedisHandle (IORef (Maybe Connection))
-
-newRedisHandle :: Maybe Connection -> IO RedisHandle
-newRedisHandle conn = RedisHandle <$> newIORef conn
-
-getRedis :: RedisHandle -> IO (Maybe Connection)
-getRedis (RedisHandle ref) = readIORef ref
-
-updateRedisHandle :: Maybe Connection -> RedisHandle -> IO ()
-updateRedisHandle conn (RedisHandle ref) = atomicWriteIORef ref conn

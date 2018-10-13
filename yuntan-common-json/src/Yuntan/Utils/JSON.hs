@@ -3,13 +3,14 @@ module Yuntan.Utils.JSON
     replace
   , unionValue
   , differenceValue
+  , pickValue
   ) where
 
 import           Data.Aeson          (Value (..))
 import           Data.Text           (Text)
 
-import           Data.HashMap.Strict (delete, difference, insert, lookupDefault,
-                                      union)
+import           Data.HashMap.Strict (delete, difference, filterWithKey, insert,
+                                      lookupDefault, union)
 
 replace :: Text -> Text -> Value -> Value
 replace okey nkey (Object v) = Object . insert nkey ov $ delete okey v
@@ -27,3 +28,7 @@ differenceValue :: Value -> Value -> Value
 differenceValue (Object a) (Object b) = Object $ difference a b
 differenceValue (Object a) _          = Object a
 differenceValue _ _                   = Null
+
+pickValue :: [Text] -> Value -> Value
+pickValue ks (Object a) = Object $ filterWithKey (\k _ -> elem k ks) a
+pickValue _ _           = Null

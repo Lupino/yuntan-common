@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Yuntan.Utils.JSON
   (
     replace
@@ -7,10 +9,12 @@ module Yuntan.Utils.JSON
   ) where
 
 import           Data.Aeson          (Value (..))
+import           Data.Maybe          (catMaybes)
 import           Data.Text           (Text)
+import qualified Data.Text           as T (isPrefixOf, stripPrefix)
 
-import           Data.HashMap.Strict (delete, difference, filterWithKey, insert,
-                                      lookupDefault, union)
+import           Data.HashMap.Strict (delete, difference, insert, lookupDefault,
+                                      mapMaybeWithKey, union)
 
 replace :: Text -> Text -> Value -> Value
 replace okey nkey (Object v) = Object . insert nkey ov $ delete okey v
@@ -29,6 +33,23 @@ differenceValue (Object a) (Object b) = Object $ difference a b
 differenceValue (Object a) _          = Object a
 differenceValue _ _                   = Null
 
+-- key1.key2.key3
 pickValue :: [Text] -> Value -> Value
-pickValue ks (Object a) = Object $ filterWithKey (\k _ -> elem k ks) a
+pickValue ks (Object a) = Object $ mapMaybeWithKey (doMapMaybeWithKey ks) a
 pickValue _ _           = Null
+
+pickValue_ :: [Text] -> Value -> Value
+pickValue_ [] v = v
+pickValue_ ks v = pickValue ks v
+
+doMapMaybeWithKey :: [Text] -> Text -> Value -> Maybe Value
+doMapMaybeWithKey ks k v = go ks
+  where go :: [Text] -> Maybe Value
+        go [] = Nothing
+        go (x:xs)
+          | k `T.isPrefixOf` x = Just $ pickValue_ (catMaybes $ nextKeys ks k) v
+          | otherwise = go xs
+
+nextKeys :: [Text] -> Text -> [Maybe Text]
+nextKeys [] _     = []
+nextKeys (x:xs) k = T.stripPrefix (k <> ".") x : nextKeys xs k

@@ -12,6 +12,7 @@ module Yuntan.Utils.GraphQL
   , getListValue
   , value
   , value'
+  , pickValue
   ) where
 
 import           Control.Applicative   (Alternative (..))
@@ -20,10 +21,12 @@ import qualified Data.Aeson            as A (Value (..))
 import           Data.GraphQL.AST      (Name)
 import           Data.GraphQL.AST.Core (ObjectField)
 import           Data.GraphQL.Schema   (Argument (..), Resolver, Value (..),
-                                        array, object, scalar)
+                                        array, object, scalar, scalarA)
 import qualified Data.HashMap.Strict   as HM (toList)
+import           Data.Maybe            (fromMaybe, mapMaybe)
 import           Data.Text             (Text)
 import qualified Data.Vector           as V (Vector, head, null, toList)
+import qualified Yuntan.Utils.JSON     as J (pickValue)
 
 import           Haxl.Core             (GenHaxl, throw)
 import           Haxl.Prelude          (NotFound (..), catchAny)
@@ -74,7 +77,7 @@ getListValue n argv = case getValue n argv of
                         _                    -> Nothing
 
 value :: Alternative f => Name -> A.Value -> Resolver f
-value k vv@(A.Object v) = object k . (scalar "_all" vv :) . listToResolver $ HM.toList v
+value k vv@(A.Object v) = object k . listToResolver $ HM.toList v
 value k (A.Array v)     = if isO v then array k (map value' $ V.toList v)
                                 else scalar k v
 value k v               = scalar k v
@@ -88,9 +91,18 @@ isO v | V.null v  = False
       | otherwise = isOv $ V.head v
 
 value' :: Alternative f => A.Value -> [Resolver f]
-value' vv@(A.Object v) = (scalar "_all" vv :) . listToResolver $ HM.toList v
+value' vv@(A.Object v) = listToResolver $ HM.toList v
 value' _               = []
 
 listToResolver :: Alternative f => [(Text, A.Value)] -> [Resolver f]
 listToResolver []          = []
 listToResolver ((k, v):xs) = value k v : listToResolver xs
+
+pickValue :: Alternative f => Name -> A.Value -> Resolver f
+pickValue n v = scalarA n $ \args -> pure $ J.pickValue (keys args) v
+  where keys :: [Argument] -> [Text]
+        keys args = mapMaybe getText (fromMaybe [] $ getListValue "keys" args)
+
+        getText :: Value -> Maybe Text
+        getText (ValueString k) = Just k
+        getText _               = Nothing

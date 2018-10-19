@@ -12,6 +12,7 @@ import           Data.Aeson          (Value (..))
 import           Data.Maybe          (catMaybes)
 import           Data.Text           (Text)
 import qualified Data.Text           as T (isPrefixOf, stripPrefix)
+import qualified Data.Vector         as V (map)
 
 import           Data.HashMap.Strict (delete, difference, insert, lookupDefault,
                                       mapMaybeWithKey, union)
@@ -35,19 +36,17 @@ differenceValue _ _                   = Null
 
 -- key1.key2.key3
 pickValue :: [Text] -> Value -> Value
+pickValue [] v          = v
 pickValue ks (Object a) = Object $ mapMaybeWithKey (doMapMaybeWithKey ks) a
+pickValue ks (Array a)  = Array $ V.map (pickValue ks) a
 pickValue _ _           = Null
-
-pickValue_ :: [Text] -> Value -> Value
-pickValue_ [] v = v
-pickValue_ ks v = pickValue ks v
 
 doMapMaybeWithKey :: [Text] -> Text -> Value -> Maybe Value
 doMapMaybeWithKey ks k v = go ks
   where go :: [Text] -> Maybe Value
         go [] = Nothing
         go (x:xs)
-          | k `T.isPrefixOf` x = Just $ pickValue_ (catMaybes $ nextKeys ks k) v
+          | k `T.isPrefixOf` x = Just $ pickValue (catMaybes $ nextKeys ks k) v
           | otherwise = go xs
 
 nextKeys :: [Text] -> Text -> [Maybe Text]

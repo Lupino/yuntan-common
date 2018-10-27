@@ -8,6 +8,7 @@ module Yuntan.Config.RedisConfig
   , defaultRedisConfig
   ) where
 import           Data.Aeson     (FromJSON, parseJSON, withObject, (.!=), (.:?))
+import           Data.String    (fromString)
 import           Data.Time      (NominalDiffTime)
 import           Database.Redis (ConnectInfo (..), Connection, connect,
                                  defaultConnectInfo)
@@ -18,6 +19,7 @@ import           Network        (PortID (PortNumber))
 
 data RedisConfig = RedisConfig { redisHost           :: String
                                , redisPort           :: Int
+                               , redisAuth           :: String
                                , redisDB             :: Integer
                                -- ^ Each connection will 'select' the database with the given index.
                                , redisMaxConnections :: Int
@@ -39,6 +41,7 @@ instance FromJSON RedisConfig where
     redisDB             <- o .:?  "db"            .!= 0
     redisHost           <- o .:? "host"           .!= "127.0.0.1"
     redisPort           <- o .:? "port"           .!= 6379
+    redisAuth           <- o .:? "auth"           .!= ""
     redisEnable         <- o .:? "enable"         .!= False
     redisMaxConnections <- o .:? "maxConnections" .!= 50
     redisMaxIdleTime    <- o .:? "idleTime"       .!= 30
@@ -48,6 +51,7 @@ instance FromJSON RedisConfig where
 defaultRedisConfig :: RedisConfig
 defaultRedisConfig = RedisConfig { redisHost           = "127.0.0.1"
                                  , redisPort           = 6379
+                                 , redisAuth           = ""
                                  , redisDB             = 0
                                  , redisMaxConnections = 50
                                  , redisMaxIdleTime    = 30
@@ -61,6 +65,7 @@ genRedisConnection conf =
       conn <- connect $ defaultConnectInfo
         { connectHost           = h
         , connectPort           = PortNumber p
+        , connectAuth           = auth
         , connectDatabase       = db
         , connectMaxConnections = maxConnections
         , connectMaxIdleTime    = maxIdleTime
@@ -75,3 +80,5 @@ genRedisConnection conf =
         enable         = redisEnable         conf
         maxConnections = redisMaxConnections conf
         maxIdleTime    = redisMaxIdleTime    conf
+        auth           = if not (null (redisAuth conf)) then
+                            Just $ fromString (redisAuth conf) else Nothing

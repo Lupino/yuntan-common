@@ -46,6 +46,7 @@ doMapMaybeWithKey ks k v = go ks
   where go :: [Text] -> Maybe Value
         go [] = Nothing
         go (x:xs)
+          | k == x = Just v
           | (k <> "." ) `T.isPrefixOf` x = Just $ pickValue (catMaybes $ nextKeys ks k) v
           | otherwise = go xs
 

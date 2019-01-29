@@ -77,10 +77,10 @@ getListValue n argv = case getValue n argv of
                         _                    -> Nothing
 
 value :: Alternative f => Name -> A.Value -> Resolver f
-value k vv@(A.Object v) = object k . listToResolver $ HM.toList v
-value k (A.Array v)     = if isO v then array k (map value' $ V.toList v)
+value k (A.Object v) = object k . listToResolver $ HM.toList v
+value k (A.Array v)  = if isO v then array k (map value' $ V.toList v)
                                 else scalar k v
-value k v               = scalar k v
+value k v            = scalar k v
 
 isOv :: A.Value -> Bool
 isOv (A.Object _) = True
@@ -91,8 +91,8 @@ isO v | V.null v  = False
       | otherwise = isOv $ V.head v
 
 value' :: Alternative f => A.Value -> [Resolver f]
-value' vv@(A.Object v) = listToResolver $ HM.toList v
-value' _               = []
+value' (A.Object v) = listToResolver $ HM.toList v
+value' _            = []
 
 listToResolver :: Alternative f => [(Text, A.Value)] -> [Resolver f]
 listToResolver []          = []

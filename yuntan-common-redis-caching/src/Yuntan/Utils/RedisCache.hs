@@ -105,23 +105,23 @@ fetchReq pref (DelData (Conn conn) ks)  = delData_ conn $ map (genKey pref) ks
 initRedisState :: Int -> ByteString -> State RedisReq
 initRedisState = RedisState
 
-getData :: FromJSON v => Connection -> ByteString -> GenHaxl u (Maybe v)
+getData :: FromJSON v => Connection -> ByteString -> GenHaxl u w (Maybe v)
 getData conn k = maybe Nothing decodeStrict <$> dataFetch (GetData (Conn conn) k)
 
-setData :: ToJSON v => Connection -> ByteString -> v -> GenHaxl u ()
+setData :: ToJSON v => Connection -> ByteString -> v -> GenHaxl u w ()
 setData conn k v = uncachedRequest . SetData (Conn conn) k . toStrict $ encode v
 
-delData :: Connection -> [ByteString] -> GenHaxl u ()
+delData :: Connection -> [ByteString] -> GenHaxl u w ()
 delData conn = uncachedRequest . DelData (Conn conn)
 
 -- | Return the cached result of the action or, in the case of a cache
 -- miss, execute the action and insert it in the cache.
-cached :: (FromJSON v, ToJSON v) => (u -> Maybe Connection) -> ByteString -> GenHaxl u (Maybe v) -> GenHaxl u (Maybe v)
+cached :: (FromJSON v, ToJSON v) => (u -> Maybe Connection) -> ByteString -> GenHaxl u w (Maybe v) -> GenHaxl u w (Maybe v)
 cached redis k io = do
   h <- redis <$> env userEnv
   go h k io
 
-  where go :: (FromJSON v, ToJSON v) => Maybe Connection -> ByteString -> GenHaxl u (Maybe v) -> GenHaxl u (Maybe v)
+  where go :: (FromJSON v, ToJSON v) => Maybe Connection -> ByteString -> GenHaxl u w (Maybe v) -> GenHaxl u w (Maybe v)
         go Nothing _ io0 = io0
         go (Just conn) k0 io0 = do
           res <- getData conn k0
@@ -135,11 +135,11 @@ cached redis k io = do
                   setData conn k0 v0
                   return v
 
-cached' :: (FromJSON v, ToJSON v) => (u -> Maybe Connection) -> ByteString -> GenHaxl u v -> GenHaxl u v
+cached' :: (FromJSON v, ToJSON v) => (u -> Maybe Connection) -> ByteString -> GenHaxl u w v -> GenHaxl u w v
 cached' redis k io = do
   h <- redis <$> env userEnv
   go h k io
-  where go :: (FromJSON v, ToJSON v) => Maybe Connection -> ByteString -> GenHaxl u v -> GenHaxl u v
+  where go :: (FromJSON v, ToJSON v) => Maybe Connection -> ByteString -> GenHaxl u w v -> GenHaxl u w v
         go Nothing _ io0 = io0
         go (Just conn) k0 io0 = do
           res <- getData conn k0
@@ -150,10 +150,10 @@ cached' redis k io = do
               setData conn k0 v
               return v
 
-remove :: (u -> Maybe Connection) -> ByteString -> GenHaxl u ()
+remove :: (u -> Maybe Connection) -> ByteString -> GenHaxl u w ()
 remove redis k = removeAll redis [k]
 
-removeAll :: (u -> Maybe Connection) -> [ByteString] -> GenHaxl u ()
+removeAll :: (u -> Maybe Connection) -> [ByteString] -> GenHaxl u w ()
 removeAll redis k = do
   h <- redis <$> env userEnv
   case h of

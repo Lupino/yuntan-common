@@ -32,7 +32,7 @@ import           Haxl.Core             (GenHaxl, throw)
 import           Haxl.Prelude          (NotFound (..), catchAny)
 
 
-instance Alternative (GenHaxl u) where
+instance Alternative (GenHaxl u w) where
   a <|> b = catchAny a b
   empty = throw $ NotFound "mzero"
 

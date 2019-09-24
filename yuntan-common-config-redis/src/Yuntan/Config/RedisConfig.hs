@@ -10,9 +10,9 @@ module Yuntan.Config.RedisConfig
 import           Data.Aeson     (FromJSON, parseJSON, withObject, (.!=), (.:?))
 import           Data.String    (fromString)
 import           Data.Time      (NominalDiffTime)
-import           Database.Redis (ConnectInfo (..), Connection, connect,
+import           Database.Redis (ConnectInfo (..), Connection,
+                                 PortID (PortNumber), connect,
                                  defaultConnectInfo)
-import           Network        (PortID (PortNumber))
 
 
 

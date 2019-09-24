@@ -30,12 +30,12 @@ doInsert k v v0 c = (insert k v c, v0)
 
 -- | Return the cached result of the action or, in the case of a cache
 -- miss, execute the action and insert it in the cache.
-cached :: (Hashable k, Ord k) => (u -> Maybe (LruHandle k v)) -> k -> GenHaxl u (Maybe v) -> GenHaxl u (Maybe v)
+cached :: (Hashable k, Ord k) => (u -> Maybe (LruHandle k v)) -> k -> GenHaxl u w (Maybe v) -> GenHaxl u w (Maybe v)
 cached lru k io = do
   h <- lru <$> env userEnv
   go h k io
 
-  where go :: (Hashable k, Ord k) => Maybe (LruHandle k v) -> k -> GenHaxl u (Maybe v) -> GenHaxl u (Maybe v)
+  where go :: (Hashable k, Ord k) => Maybe (LruHandle k v) -> k -> GenHaxl u w (Maybe v) -> GenHaxl u w (Maybe v)
         go Nothing _ io0 = io0
         go (Just (LruHandle ref)) k0 io0 = do
           res <- unsafeLiftIO $ atomicModifyIORef' ref $ doLookup k0
@@ -47,11 +47,11 @@ cached lru k io = do
                 Nothing -> return Nothing
                 Just v0 -> unsafeLiftIO $ atomicModifyIORef' ref $ doInsert k0 v0 v
 
-cached' :: (Hashable k, Ord k) => (u -> Maybe (LruHandle k v)) -> k -> GenHaxl u v -> GenHaxl u v
+cached' :: (Hashable k, Ord k) => (u -> Maybe (LruHandle k v)) -> k -> GenHaxl u w v -> GenHaxl u w v
 cached' lru k io = do
   h <- lru <$> env userEnv
   go h k io
-  where go :: (Hashable k, Ord k) => Maybe (LruHandle k v) -> k -> GenHaxl u v -> GenHaxl u v
+  where go :: (Hashable k, Ord k) => Maybe (LruHandle k v) -> k -> GenHaxl u w v -> GenHaxl u w v
         go Nothing _ io0 = io0
         go (Just (LruHandle ref)) k0 io0 = do
           res <- unsafeLiftIO $ atomicModifyIORef' ref $ doLookup k0
@@ -61,7 +61,7 @@ cached' lru k io = do
               v <- io0
               unsafeLiftIO $ atomicModifyIORef' ref $ doInsert k0 v v
 
-remove :: (Hashable k, Ord k) => (u -> Maybe (LruHandle k v)) -> k -> GenHaxl u ()
+remove :: (Hashable k, Ord k) => (u -> Maybe (LruHandle k v)) -> k -> GenHaxl u w ()
 remove lru k = do
   h <- lru <$> env userEnv
   case h of

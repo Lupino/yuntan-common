@@ -119,23 +119,23 @@ fetchReq (SetConfig k v) = setConfig_ k v
 initConfigState :: Int -> State ConfigReq
 initConfigState = ConfigState
 
-getConfig :: HasMySQL u => String -> GenHaxl u (Maybe ByteString)
-setConfig :: HasMySQL u => String -> ByteString -> GenHaxl u ()
+getConfig :: HasMySQL u => String -> GenHaxl u w (Maybe ByteString)
+setConfig :: HasMySQL u => String -> ByteString -> GenHaxl u w ()
 getConfig   = dataFetch . GetConfig
 setConfig k = uncachedRequest . SetConfig k
 
-getConfigJSON :: (HasMySQL u, FromJSON a) => String -> GenHaxl u (Maybe a)
+getConfigJSON :: (HasMySQL u, FromJSON a) => String -> GenHaxl u w (Maybe a)
 getConfigJSON k = maybe Nothing decodeStrict <$> getConfig k
 
 type ConfigLru = Maybe (LruHandle String ByteString)
 
-getConfig' :: HasMySQL u => (u -> ConfigLru) -> String -> GenHaxl u (Maybe ByteString)
+getConfig' :: HasMySQL u => (u -> ConfigLru) -> String -> GenHaxl u w (Maybe ByteString)
 getConfig' lru k = cached lru k (getConfig k)
 
-getConfigJSON' :: (HasMySQL u, FromJSON a) => (u -> ConfigLru) -> String -> GenHaxl u (Maybe a)
+getConfigJSON' :: (HasMySQL u, FromJSON a) => (u -> ConfigLru) -> String -> GenHaxl u w (Maybe a)
 getConfigJSON' lru k = maybe Nothing decodeStrict <$> cached lru k (getConfig k)
 
-setConfig' :: HasMySQL u => (u -> ConfigLru) -> String -> ByteString -> GenHaxl u ()
+setConfig' :: HasMySQL u => (u -> ConfigLru) -> String -> ByteString -> GenHaxl u w ()
 setConfig' lru k v = do
   remove lru k
   setConfig k v
@@ -147,7 +147,7 @@ fillValue
   -> (a -> Value)
   -> (Value -> a -> a)
   -> Maybe a
-  -> GenHaxl u (Maybe a)
+  -> GenHaxl u w (Maybe a)
 fillValue _ _ _ _ Nothing    = return Nothing
 fillValue lru k g f (Just v) = Just <$> fillValue_ lru k g f v
 
@@ -158,7 +158,7 @@ fillValue_
   -> (a -> Value)
   -> (Value -> a -> a)
   -> a
-  -> GenHaxl u a
+  -> GenHaxl u w a
 fillValue_ lru k g f v = do
   ex <- getConfigJSON' lru k
   case ex of

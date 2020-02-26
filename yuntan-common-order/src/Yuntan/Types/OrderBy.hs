@@ -2,11 +2,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Yuntan.Types.OrderBy
-  (
-    OrderBy
+  ( OrderBy
   , asc
   , desc
   , emptyOrder
+  , show1
   ) where
 
 import           Data.Hashable (Hashable (..))
@@ -35,3 +35,8 @@ instance Show OrderBy where
   show (Desc field) = "ORDER BY " ++ quote field ++ " DESC"
   show (Asc field)  = "ORDER BY " ++ quote field ++ " ASC"
   show EmptyOrder   = ""
+
+show1 :: OrderBy -> String
+show1 (Desc field) = "ORDER BY " ++ field ++ " DESC"
+show1 (Asc field)  = "ORDER BY " ++ field ++ " ASC"
+show1 EmptyOrder   = ""

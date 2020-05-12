@@ -30,6 +30,7 @@ module Yuntan.Types.HasPSQL
 
   , insert
   , insertRet
+  , insertOrUpdate
   , update
   , delete
   , delete_
@@ -76,10 +77,10 @@ class HasOtherEnv u a where
   otherEnv :: a -> u
 
 data SimpleEnv u = SimpleEnv
-  { pc :: Pool Connection
-  , pf :: TablePrefix
-  , pu :: u
-  }
+    { pc :: Pool Connection
+    , pf :: TablePrefix
+    , pu :: u
+    }
 
 instance HasPSQL (SimpleEnv u) where
   psqlPool = pc
@@ -160,6 +161,28 @@ insertRet tn cols col a prefix conn = getOnlyDefault 0 <$> query conn sql a
           , " VALUES"
           , " (", columnsToString v, ")"
           , " returning ", unColumn col
+          ]
+
+insertOrUpdate :: ToRow a => TableName -> Columns -> Columns -> Columns -> a -> PSQL Int64
+insertOrUpdate tn uniqCols valCols otherCols a prefix conn = execute conn sql a
+  where cols = uniqCols ++ valCols ++ otherCols
+        v = replicate (length cols) "?"
+
+        setSql = intercalate ", " $ map appendSet valCols
+
+        appendSet :: Column -> String
+        appendSet (Column col) | '=' `elem` col = col
+                               | otherwise = col ++ " = excluded." ++ col
+
+        doSql = if null valCols then " DO NOTHING" else " DO UPDATE SET " ++ setSql
+
+        sql = fromString $ concat
+          [ "INSERT INTO ", getTableName prefix tn
+          , " (", columnsToString cols, ")"
+          , " VALUES"
+          , " (", columnsToString v, ")"
+          , " ON CONFLICT (", columnsToString uniqCols, ")"
+          , doSql
           ]
 
 update :: ToRow a => TableName -> Columns -> String -> a -> PSQL Int64
@@ -247,7 +270,7 @@ selectOneOnly tn col partSql a prefix conn =
 createVersionTable :: PSQL Int64
 createVersionTable prefix conn =
   createTable "version"
-    [ "name CHAR(10) NOT NULL"
+    [ "name VARCHAR(10) NOT NULL"
     , "version INT DEFAULT '0'"
     , "PRIMARY KEY (name)"
     ] prefix conn
@@ -266,17 +289,17 @@ updateVersion :: Int64 -> PSQL ()
 updateVersion ts prefix conn =
   void $ update "version" ["version"] "name = ?" (ts, "version" :: String) prefix conn
 
-type Version = (Int64, [PSQL ()])
-type VersionList = [Version]
+type Version a = (Int64, [PSQL a])
+type VersionList a = [Version a]
 
-mergeDatabase :: VersionList -> PSQL ()
+mergeDatabase :: VersionList a -> PSQL ()
 mergeDatabase versionList prefix conn = do
   version <- getCurrentVersion prefix conn
   mapM_ (\v -> processAction version v prefix conn) versionList
 
-processAction :: Int64 -> Version -> PSQL ()
+processAction :: Int64 -> Version a -> PSQL ()
 processAction version (ts, actions) prefix conn =
   if ts > version then do
                   updateVersion ts prefix conn
-                  mapM_ (\o -> o prefix conn) actions
+                  mapM_ (\o -> void $ o prefix conn) actions
                   else pure ()

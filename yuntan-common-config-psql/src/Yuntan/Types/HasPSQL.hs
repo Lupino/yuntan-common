@@ -47,20 +47,27 @@ module Yuntan.Types.HasPSQL
 
   , VersionList
   , mergeDatabase
+
+
+  -- reexports
+  , FromRow (..)
+  , field
+  , Only (..)
   ) where
 
 
-import           Control.Monad              (void)
-import           Data.Int                   (Int64)
-import           Data.List                  (intercalate)
-import           Data.Maybe                 (listToMaybe)
-import           Data.Pool                  (Pool)
-import           Data.String                (IsString (..))
-import           Database.PostgreSQL.Simple (Connection, FromRow, Only (..),
-                                             ToRow, execute, execute_, query,
-                                             query_)
-import           Yuntan.Types.ListResult    (From, Size)
-import           Yuntan.Types.OrderBy       (OrderBy, show1)
+import           Control.Monad                      (void)
+import           Data.Int                           (Int64)
+import           Data.List                          (intercalate)
+import           Data.Maybe                         (listToMaybe)
+import           Data.Pool                          (Pool)
+import           Data.String                        (IsString (..))
+import           Database.PostgreSQL.Simple         (Connection, Only (..),
+                                                     ToRow, execute, execute_,
+                                                     query, query_)
+import           Database.PostgreSQL.Simple.FromRow (FromRow (..), field)
+import           Yuntan.Types.ListResult            (From, Size)
+import           Yuntan.Types.OrderBy               (OrderBy, show1)
 
 
 newtype TablePrefix = TablePrefix String

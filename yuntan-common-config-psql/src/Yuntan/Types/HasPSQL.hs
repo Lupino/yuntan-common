@@ -49,10 +49,11 @@ module Yuntan.Types.HasPSQL
   , mergeDatabase
 
 
-  -- reexports
+  -- re-exports
   , FromRow (..)
   , field
   , Only (..)
+  , SqlError (..)
   ) where
 
 
@@ -63,8 +64,9 @@ import           Data.Maybe                         (listToMaybe)
 import           Data.Pool                          (Pool)
 import           Data.String                        (IsString (..))
 import           Database.PostgreSQL.Simple         (Connection, Only (..),
-                                                     ToRow, execute, execute_,
-                                                     query, query_)
+                                                     SqlError (..), ToRow,
+                                                     execute, execute_, query,
+                                                     query_)
 import           Database.PostgreSQL.Simple.FromRow (FromRow (..), field)
 import           Yuntan.Types.ListResult            (From, Size)
 import           Yuntan.Types.OrderBy               (OrderBy, show1)

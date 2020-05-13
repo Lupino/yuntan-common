@@ -101,7 +101,7 @@ instance IsString TableName where
 
 getTableName :: TablePrefix -> TableName -> String
 getTableName (TablePrefix prefix) (TableName name) =
-  concat [ prefix, "_", name ]
+  concat ["\"", prefix, "_", name, "\"" ]
 
 newtype Column = Column { unColumn :: String }
   deriving (Show)

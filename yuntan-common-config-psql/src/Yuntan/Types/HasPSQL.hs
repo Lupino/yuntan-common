@@ -22,6 +22,7 @@ module Yuntan.Types.HasPSQL
   , getTableName
   , Columns
   , createTable
+  , constraintPrimaryKey
   , getIndexName
   , IndexName
   , createIndex
@@ -113,6 +114,13 @@ type Columns = [Column]
 
 columnsToString :: Columns -> String
 columnsToString = intercalate ", " . map unColumn
+
+constraintPrimaryKey :: TablePrefix -> IndexName -> Columns -> Column
+constraintPrimaryKey prefix indexName columns = Column . concat $
+  [ "CONSTRAINT "
+  , getIndexName prefix indexName
+  , " PRIMARY KEY (", columnsToString columns, ")"
+  ]
 
 createTable :: TableName -> Columns -> PSQL Int64
 createTable tn cols prefix conn = execute_ conn sql

@@ -22,6 +22,7 @@ module Yuntan.Types.HasPSQL
   , getTableName
   , Columns
   , createTable
+  , getIndexName
   , IndexName
   , createIndex
 
@@ -127,10 +128,15 @@ newtype IndexName = IndexName String
 instance IsString IndexName where
   fromString = IndexName
 
+getIndexName :: TablePrefix -> IndexName -> String
+getIndexName (TablePrefix prefix) (IndexName name) =
+  concat [ "\"", prefix, "_", name, "\"" ]
+
+
 createIndex :: Bool -> TableName -> IndexName -> Columns -> PSQL Int64
-createIndex uniq tn (IndexName idxN) cols prefix conn = execute_ conn sql
+createIndex uniq tn idxN cols prefix conn = execute_ conn sql
   where sql = fromString $ concat
-          [ "CREATE ", uniqWord, "INDEX IF NOT EXISTS ", idxN
+          [ "CREATE ", uniqWord, "INDEX IF NOT EXISTS ", getIndexName prefix idxN
           , " ON " , getTableName prefix tn, "(", columnsToString cols, ")"
           ]
 

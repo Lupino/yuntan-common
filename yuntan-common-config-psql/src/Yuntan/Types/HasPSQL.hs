@@ -181,8 +181,8 @@ insert tn cols a prefix conn = execute conn sql a
           , " (", columnsToString v, ")"
           ]
 
-insertRet :: (ToRow a) => TableName -> Columns -> Column -> a -> PSQL Int64
-insertRet tn cols col a prefix conn = getOnlyDefault 0 <$> query conn sql a
+insertRet :: (ToRow a, FromRow (Only b)) => TableName -> Columns -> Column -> a -> b -> PSQL b
+insertRet tn cols col a def prefix conn = getOnlyDefault def <$> query conn sql a
   where v = take (length cols) $ cycle ["?"]
         sql = fromString $ concat
           [ "INSERT INTO ", getTableName prefix tn
@@ -311,7 +311,7 @@ getCurrentVersion prefix conn = do
   case ts of
     Just v -> pure v
     Nothing  ->
-      insertRet "version" ["name", "version"] "version" ("version" :: String, 0 :: Int) prefix conn
+      insertRet "version" ["name", "version"] "version" ("version" :: String, 0 :: Int) 0 prefix conn
 
 
 updateVersion :: Int64 -> PSQL ()

@@ -112,6 +112,8 @@ instance IsString TableName where
   fromString = TableName
 
 getTableName :: TablePrefix -> TableName -> String
+getTableName (TablePrefix "") (TableName name) =
+  concat ["\"", name, "\"" ]
 getTableName (TablePrefix prefix) (TableName name) =
   concat ["\"", prefix, "_", name, "\"" ]
 
@@ -148,6 +150,8 @@ instance IsString IndexName where
   fromString = IndexName
 
 getIndexName :: TablePrefix -> IndexName -> String
+getIndexName (TablePrefix "") (IndexName name) =
+  concat [ "\"", name, "\"" ]
 getIndexName (TablePrefix prefix) (IndexName name) =
   concat [ "\"", prefix, "_", name, "\"" ]
 

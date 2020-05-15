@@ -8,6 +8,7 @@
 module Yuntan.Types.HasPSQL
   ( TablePrefix
 
+  , PSQLPool
   , PSQL
   , HasPSQL
   , psqlPool
@@ -79,9 +80,10 @@ instance IsString TablePrefix where
   fromString = TablePrefix
 
 type PSQL a = TablePrefix -> Connection -> IO a
+type PSQLPool = Pool Connection
 
 class HasPSQL u where
-  psqlPool   :: u -> Pool Connection
+  psqlPool    :: u -> PSQLPool
   tablePrefix :: u -> TablePrefix
 
 class HasOtherEnv u a where

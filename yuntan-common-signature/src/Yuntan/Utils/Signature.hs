@@ -1,6 +1,5 @@
 module Yuntan.Utils.Signature
-  (
-    signParams
+  ( signParams
   , signJSON
   , hmacSHA256
   , signRaw
@@ -13,22 +12,28 @@ import           Data.Byteable         (toBytes)
 import qualified Data.ByteString.Char8 as B (ByteString, concat, empty, pack,
                                              unpack)
 import qualified Data.HashMap.Lazy     as LH (HashMap, toList)
-import           Data.Hex              (hex)
 import           Data.List             (sortOn)
 import           Data.Scientific       (Scientific, floatingOrInteger)
 import qualified Data.Text             as T (Text, unpack)
 import           Data.Text.Encoding    (encodeUtf8)
 import qualified Data.Text.Lazy        as LT (Text, toStrict, unpack)
 import qualified Data.Vector           as V (Vector, toList)
+import           Data.CaseInsensitive   (CI, original, mk)
 
-hmacSHA256 :: B.ByteString -> B.ByteString -> B.ByteString
-hmacSHA256 solt = h2b . hmac solt
+hex :: B.ByteString -> CI B.ByteString
+hex = mk . B.pack . concatMap w . B.unpack
+  where w ch = let s = "0123456789ABCDEF"
+                   x = fromEnum ch
+               in [s !! div x 16,s !! mod x 16]
+
+hmacSHA256 :: B.ByteString -> B.ByteString -> CI B.ByteString
+hmacSHA256 solt = hex . h2b . hmac solt
 
 h2b :: HMAC SHA256 -> B.ByteString
 h2b = toBytes . hmacGetDigest
 
-signParams :: B.ByteString -> [(LT.Text, LT.Text)] -> B.ByteString
-signParams solt = hex . hmacSHA256 solt . join . sort
+signParams :: B.ByteString -> [(LT.Text, LT.Text)] -> CI B.ByteString
+signParams solt = hmacSHA256 solt . join . sort
   where sort :: [(LT.Text, LT.Text)] -> [(LT.Text, LT.Text)]
         sort = sortOn (\(k, _) -> LT.unpack k)
 
@@ -36,8 +41,8 @@ signParams solt = hex . hmacSHA256 solt . join . sort
         join ((k,v):xs) = B.concat [encodeUtf8 $ LT.toStrict k, encodeUtf8 $ LT.toStrict v, join xs]
         join []         = B.empty
 
-signJSON :: B.ByteString -> Value -> B.ByteString
-signJSON solt = hex . hmacSHA256 solt . v2b
+signJSON :: B.ByteString -> Value -> CI B.ByteString
+signJSON solt = hmacSHA256 solt . v2b
   where sortHashMap :: LH.HashMap T.Text Value -> [(T.Text, Value)]
         sortHashMap = sortOn (\(k, _) -> T.unpack k) . LH.toList
 
@@ -62,8 +67,8 @@ signJSON solt = hex . hmacSHA256 solt . v2b
                          Left n  -> show n
                          Right n -> show n
 
-signRaw :: B.ByteString -> [(B.ByteString, B.ByteString)] -> B.ByteString
-signRaw solt = hex . hmacSHA256 solt . join . sort
+signRaw :: B.ByteString -> [(B.ByteString, B.ByteString)] -> CI B.ByteString
+signRaw solt = hmacSHA256 solt . join . sort
   where sort :: [(B.ByteString, B.ByteString)] -> [(B.ByteString, B.ByteString)]
         sort = sortOn (\(k, _) -> B.unpack k)
 

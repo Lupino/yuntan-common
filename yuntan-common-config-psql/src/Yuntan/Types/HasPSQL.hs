@@ -128,10 +128,10 @@ type Columns = [Column]
 columnsToString :: Columns -> String
 columnsToString = intercalate ", " . map unColumn
 
-constraintPrimaryKey :: TablePrefix -> IndexName -> Columns -> Column
-constraintPrimaryKey prefix indexName columns = Column . concat $
+constraintPrimaryKey :: TablePrefix -> TableName -> Columns -> Column
+constraintPrimaryKey prefix tn columns = Column . concat $
   [ "CONSTRAINT "
-  , getIndexName prefix indexName
+  , getIndexName prefix tn "pkey"
   , " PRIMARY KEY (", columnsToString columns, ")"
   ]
 
@@ -149,17 +149,17 @@ newtype IndexName = IndexName String
 instance IsString IndexName where
   fromString = IndexName
 
-getIndexName :: TablePrefix -> IndexName -> String
-getIndexName (TablePrefix "") (IndexName name) =
-  concat [ "\"", name, "\"" ]
-getIndexName (TablePrefix prefix) (IndexName name) =
-  concat [ "\"", prefix, "_", name, "\"" ]
+getIndexName :: TablePrefix -> TableName -> IndexName -> String
+getIndexName (TablePrefix "") (TableName tn) (IndexName name) =
+  concat [ "\"", tn, "_", name, "\"" ]
+getIndexName (TablePrefix prefix) (TableName tn) (IndexName name) =
+  concat [ "\"", prefix, "_", tn , "_", name, "\"" ]
 
 
 createIndex :: Bool -> TableName -> IndexName -> Columns -> PSQL Int64
 createIndex uniq tn idxN cols prefix conn = execute_ conn sql
   where sql = fromString $ concat
-          [ "CREATE ", uniqWord, "INDEX IF NOT EXISTS ", getIndexName prefix idxN
+          [ "CREATE ", uniqWord, "INDEX IF NOT EXISTS ", getIndexName prefix tn idxN
           , " ON " , getTableName prefix tn, "(", columnsToString cols, ")"
           ]
 

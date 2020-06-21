@@ -5,7 +5,7 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE TypeFamilies          #-}
 
-module Yuntan.Types.HasPSQL
+module Yuntan.Types.PSQL
   ( TablePrefix
 
   , PSQLPool

@@ -1,4 +1,4 @@
-name:                yuntan-common-config-psql
+name:                yuntan-common-psql
 version:             0.1.0.0
 synopsis:            The common utils for haskell program.
 description:         Please see README.md
@@ -16,8 +16,8 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Yuntan.Config.PSQLConfig
-                     , Yuntan.Types.HasPSQL
+  exposed-modules:     Yuntan.Config.PSQL
+                     , Yuntan.Types.PSQL
   build-depends:       base >= 4.7 && < 5
                      , resource-pool
                      , time

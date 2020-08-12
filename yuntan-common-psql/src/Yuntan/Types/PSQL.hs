@@ -69,8 +69,10 @@ import           Database.PostgreSQL.Simple         (Connection, Only (..),
                                                      execute, execute_, query,
                                                      query_)
 import           Database.PostgreSQL.Simple.FromRow (FromRow (..), field)
-import           Yuntan.Types.ListResult            (From, Size)
 import           Yuntan.Types.OrderBy               (OrderBy, show1)
+
+type From = Int64
+type Size = Int64
 
 
 newtype TablePrefix = TablePrefix String

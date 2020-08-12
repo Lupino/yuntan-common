@@ -16,6 +16,7 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Yuntan.Types.Result
+                     , Yuntan.Types.ListResult
   build-depends:       base >= 4.7 && < 5
                      , aeson
                      , text

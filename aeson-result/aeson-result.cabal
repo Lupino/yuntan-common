@@ -1,22 +1,21 @@
-name:                yuntan-common-result
+name:                aeson-result
 version:             0.1.0.0
-synopsis:            The common utils for haskell program.
-description:         Please see README.md
-homepage:            https://github.com/Lupino/yuntan-common#readme
+synopsis:            API Result for aeson
+description:         API Result for aeson. Make json rest ful api stand.
+homepage:            https://github.com/Lupino/yuntan-common/tree/master/aeson-result#readme
 license:             BSD3
 license-file:        LICENSE
 author:              Li Meng Jun
 maintainer:          lmjubuntu@gmail.com
 copyright:           MIT
-category:            value
+category:            Web,Aeson,API
 build-type:          Simple
 -- extra-source-files:
 cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Yuntan.Types.Result
-                     , Yuntan.Types.ListResult
+  exposed-modules:     Data.Aeson.Result
   build-depends:       base >= 4.7 && < 5
                      , aeson
                      , text

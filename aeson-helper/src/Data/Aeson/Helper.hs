@@ -17,24 +17,57 @@ import           Data.HashMap.Strict (delete, insert, lookupDefault,
                                       mapMaybeWithKey)
 import qualified Data.HashMap.Strict as HM (difference, union)
 
+-- | Replace JSON key to a new key
+--
+-- >>> replace "okey" "nkey" (object [ "okey" := "value" ])
+-- Object (fromList [("nkey",String "value")])
+--
+-- >>> replace "okey" "nkey" (String "value")
+-- String "value"
 replace :: Text -> Text -> Value -> Value
 replace okey nkey (Object v) = Object . insert nkey ov $ delete okey v
   where ov = lookupDefault Null okey v
 
 replace _ _ v = v
 
+-- | Union two JSON
+--
+-- >>> union (object ["key1" .= "value1"]) (object ["key2" .= "value2"])
+-- Object (fromList [("key2",String "value2"),("key1",String "value1")])
+--
+-- >>> union (object ["key1" .= "value1"]) (object ["key1" .= "value2"])
+-- Object (fromList [("key1",String "value1")])
+--
+-- >>> union Null (object ["key2" .= "value2"])
+-- Object (fromList [("key2",String "value2")])
+--
+-- >>> union (object ["key1" .= "value1"]) Null
+-- Object (fromList [("key1",String "value1")])
 union :: Value -> Value -> Value
 union (Object a) (Object b) = Object $ HM.union a b
 union (Object a) _          = Object a
 union _ (Object b)          = Object b
 union _ _                   = Null
 
+-- | Difference two JSON
+--
+-- >>> difference  (object ["key1" .= "value1", "key2" .= "value2"]) (object ["key1" .= Null])
+-- Object (fromList [("key2",String "value2")])
 difference :: Value -> Value -> Value
 difference (Object a) (Object b) = Object $ HM.difference a b
 difference (Object a) _          = Object a
 difference _ _                   = Null
 
--- key1.key2.key3
+-- | Pick a value from JSON
+--
+-- >>> pick ["key1"] $ object ["key1" .= "value1", "key2" .= "value2", "key3" .= "value3"]
+-- Object (fromList [("key1",String "value1")])
+--
+-- >>> pick ["key1", "key2"] $ object ["key1" .= "value1", "key2" .= "value2", "key3" .= "value3"]
+-- Object (fromList [("key2",String "value2"),("key1",String "value1")])
+--
+-- >>> pick ["key3.key4"] $ object ["key1" .= "value1", "key2" .= "value2", "key3" .= object ["key4" .= "value4"]]
+-- Object (fromList [("key3",Object (fromList [("key4",String "value4")]))])
 pick :: [Text] -> Value -> Value
 pick [] v          = v
 pick ks (Object a) = Object $ mapMaybeWithKey (doMapMaybeWithKey ks) a

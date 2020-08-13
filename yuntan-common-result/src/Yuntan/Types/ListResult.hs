@@ -20,7 +20,7 @@ import           Data.Aeson        (FromJSON (..), Result (..), ToJSON (..),
 import           Data.Int          (Int64)
 import           Data.Text         (Text)
 
-import           Yuntan.Utils.JSON (replace)
+import           Data.Aeson.Helper (replace)
 
 type From        = Int64
 type Size        = Int64

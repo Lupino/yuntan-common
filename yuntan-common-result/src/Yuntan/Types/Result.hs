@@ -16,8 +16,8 @@ import           Control.Exception (Exception, throwIO)
 import           Data.Aeson        (FromJSON (..), Result (..), ToJSON (..),
                                     Value, fromJSON, object, withObject, (.:),
                                     (.=))
+import           Data.Aeson.Helper (replace)
 import           Data.Text         (Text)
-import           Yuntan.Utils.JSON (replace)
 
 newtype OkResult a = OkResult { getValue :: a }
   deriving (Show)

@@ -1,14 +1,14 @@
-name:                yuntan-common-json
+name:                aeson-helper
 version:             0.1.0.0
-synopsis:            The common utils for haskell program.
-description:         Please see README.md
-homepage:            https://github.com/Lupino/yuntan-common#readme
+synopsis:            Aeson helper func
+description:         Aeson helper func: replace union difference pick
+homepage:            https://github.com/Lupino/yuntan-common/tree/master/aeson-helper#readme
 license:             BSD3
 license-file:        LICENSE
 author:              Li Meng Jun
 maintainer:          lmjubuntu@gmail.com
 copyright:           MIT
-category:            value
+category:            Data,Aeson
 build-type:          Simple
 -- extra-source-files:
 cabal-version:       >=1.10
@@ -16,7 +16,7 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
 
-  exposed-modules:     Yuntan.Utils.JSON
+  exposed-modules:     Data.Aeson.Helper
   build-depends:       base >= 4.7 && < 5
                      , unordered-containers
                      , text

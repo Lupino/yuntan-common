@@ -1,4 +1,4 @@
-module Yuntan.Utils.Signature
+module Crypto.Signature
   ( signParams
   , signJSON
   , hmacSHA256
@@ -11,20 +11,18 @@ import           Data.Aeson            (Value (..))
 import           Data.Byteable         (toBytes)
 import qualified Data.ByteString.Char8 as B (ByteString, concat, empty, pack,
                                              unpack)
+import           Data.CaseInsensitive  (CI, mk)
 import qualified Data.HashMap.Lazy     as LH (HashMap, toList)
+import           Data.HexString        (fromBytes, toText)
 import           Data.List             (sortOn)
 import           Data.Scientific       (Scientific, floatingOrInteger)
 import qualified Data.Text             as T (Text, unpack)
 import           Data.Text.Encoding    (encodeUtf8)
 import qualified Data.Text.Lazy        as LT (Text, toStrict, unpack)
 import qualified Data.Vector           as V (Vector, toList)
-import           Data.CaseInsensitive   (CI, original, mk)
 
 hex :: B.ByteString -> CI B.ByteString
-hex = mk . B.pack . concatMap w . B.unpack
-  where w ch = let s = "0123456789ABCDEF"
-                   x = fromEnum ch
-               in [s !! div x 16,s !! mod x 16]
+hex = mk . encodeUtf8 . toText . fromBytes
 
 hmacSHA256 :: B.ByteString -> B.ByteString -> CI B.ByteString
 hmacSHA256 solt = hex . h2b . hmac solt

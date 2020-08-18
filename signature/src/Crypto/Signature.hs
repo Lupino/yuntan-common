@@ -3,9 +3,14 @@ module Crypto.Signature
   , signJSON
   , hmacSHA256
   , signRaw
+
+  , mkHexHash
+  , signParams_
+  , signJSON_
+  , signRaw_
   ) where
 
-import           Crypto.Hash           (SHA256)
+import           Crypto.Hash           (Digest, SHA256)
 import           Crypto.MAC            (HMAC (..), hmac)
 import           Data.Aeson            (Value (..))
 import           Data.Byteable         (toBytes)
@@ -21,17 +26,17 @@ import           Data.Text.Encoding    (encodeUtf8)
 import qualified Data.Text.Lazy        as LT (Text, toStrict, unpack)
 import qualified Data.Vector           as V (Vector, toList)
 
-hex :: B.ByteString -> CI B.ByteString
-hex = mk . encodeUtf8 . toText . fromBytes
-
 hmacSHA256 :: B.ByteString -> B.ByteString -> CI B.ByteString
-hmacSHA256 solt = hex . h2b . hmac solt
+hmacSHA256 solt = mkHexHash (mkHmacSHA256Hash solt)
 
-h2b :: HMAC SHA256 -> B.ByteString
-h2b = toBytes . hmacGetDigest
+mkHmacSHA256Hash :: B.ByteString -> B.ByteString -> Digest SHA256
+mkHmacSHA256Hash solt = hmacGetDigest . hmac solt
 
-signParams :: B.ByteString -> [(LT.Text, LT.Text)] -> CI B.ByteString
-signParams solt = hmacSHA256 solt . join . sort
+mkHexHash :: (B.ByteString -> Digest a) -> B.ByteString -> CI B.ByteString
+mkHexHash mkHash = mk . encodeUtf8 . toText . fromBytes . toBytes . mkHash
+
+sortAndJoinTextParams :: [(LT.Text, LT.Text)] -> B.ByteString
+sortAndJoinTextParams = join . sort
   where sort :: [(LT.Text, LT.Text)] -> [(LT.Text, LT.Text)]
         sort = sortOn (\(k, _) -> LT.unpack k)
 
@@ -39,8 +44,14 @@ signParams solt = hmacSHA256 solt . join . sort
         join ((k,v):xs) = B.concat [encodeUtf8 $ LT.toStrict k, encodeUtf8 $ LT.toStrict v, join xs]
         join []         = B.empty
 
-signJSON :: B.ByteString -> Value -> CI B.ByteString
-signJSON solt = hmacSHA256 solt . v2b
+signParams_ :: (B.ByteString -> Digest a) -> [(LT.Text, LT.Text)] -> CI B.ByteString
+signParams_ mkHash = mkHexHash mkHash . sortAndJoinTextParams
+
+signParams :: B.ByteString -> [(LT.Text, LT.Text)] -> CI B.ByteString
+signParams solt = signParams_ (mkHmacSHA256Hash solt)
+
+sortAndJoinJSON :: Value -> B.ByteString
+sortAndJoinJSON = v2b
   where sortHashMap :: LH.HashMap T.Text Value -> [(T.Text, Value)]
         sortHashMap = sortOn (\(k, _) -> T.unpack k) . LH.toList
 
@@ -65,11 +76,23 @@ signJSON solt = hmacSHA256 solt . v2b
                          Left n  -> show n
                          Right n -> show n
 
-signRaw :: B.ByteString -> [(B.ByteString, B.ByteString)] -> CI B.ByteString
-signRaw solt = hmacSHA256 solt . join . sort
+signJSON_ :: (B.ByteString -> Digest a) -> Value -> CI B.ByteString
+signJSON_ mkHash = mkHexHash mkHash . sortAndJoinJSON
+
+signJSON :: B.ByteString -> Value -> CI B.ByteString
+signJSON solt = signJSON_ (mkHmacSHA256Hash solt)
+
+sortAndJoinRawParams :: [(B.ByteString, B.ByteString)] -> B.ByteString
+sortAndJoinRawParams = join . sort
   where sort :: [(B.ByteString, B.ByteString)] -> [(B.ByteString, B.ByteString)]
         sort = sortOn (\(k, _) -> B.unpack k)
 
         join :: [(B.ByteString, B.ByteString)] -> B.ByteString
         join []         = B.empty
         join ((k,v):xs) = B.concat [k, v, join xs]
+
+signRaw_ :: (B.ByteString -> Digest a) -> [(B.ByteString, B.ByteString)] -> CI B.ByteString
+signRaw_ mkHash = mkHexHash mkHash . sortAndJoinRawParams
+
+signRaw :: B.ByteString -> [(B.ByteString, B.ByteString)] -> CI B.ByteString
+signRaw solt = signRaw_ (mkHmacSHA256Hash solt)

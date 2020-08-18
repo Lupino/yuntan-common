@@ -1,5 +1,5 @@
 name:                signature
-version:             0.1.0.0
+version:             0.1.1.0
 synopsis:            Hmac sha256 signature json and http payload
 description:         Hmac sha256 signature json and http payload.
 homepage:            https://github.com/Lupino/yuntan-common/tree/master/signature#readme

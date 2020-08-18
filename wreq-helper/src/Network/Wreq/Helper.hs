@@ -1,17 +1,16 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Yuntan.Utils.Wreq
-  (
-    responseValue
+module Network.Wreq.Helper
+  ( responseValue
   , responseMaybe
   , responseEither
   , responseEither'
   , responseEitherJSON
   , responseJSON
-  , responseOkResult
-  , responseOkResult_
-  , responseListResult
-  , responseListResult_
+  , responseOk
+  , responseOk_
+  , responseList
+  , responseList_
   , tryResponse
   , eitherToError
   ) where
@@ -84,8 +83,8 @@ responseEitherJSON req = responseEither $ asJSON =<< req
 responseJSON :: FromJSON a => IO (Response LB.ByteString) -> IO a
 responseJSON = eitherToError . responseEitherJSON
 
-responseOkResult :: FromJSON a => Text -> IO (Response LB.ByteString) -> IO (Either Err (Ok a))
-responseOkResult okey req = do
+responseOk :: FromJSON a => Text -> IO (Response LB.ByteString) -> IO (Either Err (Ok a))
+responseOk okey req = do
   rsp <- responseEitherJSON req
   case rsp of
     Left e  -> return $ Left e
@@ -93,11 +92,11 @@ responseOkResult okey req = do
                  Just v  -> return $ Right v
                  Nothing -> return . Left $ err "Invalid Result"
 
-responseOkResult_ :: FromJSON a => Text -> IO (Response LB.ByteString) -> IO (Ok a)
-responseOkResult_ okey req = eitherToError (responseOkResult okey req)
+responseOk_ :: FromJSON a => Text -> IO (Response LB.ByteString) -> IO (Ok a)
+responseOk_ okey req = eitherToError (responseOk okey req)
 
-responseListResult :: FromJSON a => Text -> IO (Response LB.ByteString) -> IO (Either Err (List a))
-responseListResult okey req = do
+responseList :: FromJSON a => Text -> IO (Response LB.ByteString) -> IO (Either Err (List a))
+responseList okey req = do
   rsp <- responseEitherJSON req
   case rsp of
     Left e  -> return $ Left e
@@ -105,5 +104,5 @@ responseListResult okey req = do
                  Just v  -> return $ Right v
                  Nothing -> return . Left $ err "Invalid Result"
 
-responseListResult_ :: FromJSON a => Text -> IO (Response LB.ByteString) -> IO (List a)
-responseListResult_ okey req = eitherToError (responseListResult okey req)
+responseList_ :: FromJSON a => Text -> IO (Response LB.ByteString) -> IO (List a)
+responseList_ okey req = eitherToError (responseList okey req)

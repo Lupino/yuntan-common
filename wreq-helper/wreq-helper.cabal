@@ -1,8 +1,8 @@
-name:                yuntan-common-wreq
+name:                wreq-helper
 version:             0.1.0.0
-synopsis:            The common utils for haskell program.
-description:         Please see README.md
-homepage:            https://github.com/Lupino/yuntan-common#readme
+synopsis:            Wreq response process
+description:         Wreq response process.
+homepage:            https://github.com/Lupino/yuntan-common/tree/master/wreq-helper#readme
 license:             BSD3
 license-file:        LICENSE
 author:              Li Meng Jun
@@ -15,7 +15,7 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Yuntan.Utils.Wreq
+  exposed-modules:     Network.Wreq.Helper
   build-depends:       base >= 4.7 && < 5
                      , wreq
                      , http-client

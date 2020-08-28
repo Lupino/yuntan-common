@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
-module Yuntan.Config.PSQL
+module Database.PSQL.Config
   ( PSQL (..)
   , genPSQLPool
   ) where

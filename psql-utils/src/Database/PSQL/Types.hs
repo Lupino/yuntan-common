@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE GADTs                 #-}
@@ -5,7 +6,7 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE TypeFamilies          #-}
 
-module Yuntan.Types.PSQL
+module Database.PSQL.Types
   ( TablePrefix
 
   , PSQLPool
@@ -55,10 +56,16 @@ module Yuntan.Types.PSQL
   , field
   , Only (..)
   , SqlError (..)
+
+  , OrderBy
+  , asc
+  , desc
+  , none
   ) where
 
 
 import           Control.Monad                      (void)
+import           Data.Hashable                      (Hashable (..))
 import           Data.Int                           (Int64)
 import           Data.List                          (intercalate)
 import           Data.Maybe                         (listToMaybe)
@@ -69,7 +76,7 @@ import           Database.PostgreSQL.Simple         (Connection, Only (..),
                                                      execute, execute_, query,
                                                      query_)
 import           Database.PostgreSQL.Simple.FromRow (FromRow (..), field)
-import           Yuntan.Types.OrderBy               (OrderBy, show1)
+import           GHC.Generics                       (Generic)
 
 type From = Int64
 type Size = Int64
@@ -264,7 +271,7 @@ select tn cols partSql a from size o prefix conn = query conn sql a
         sql = fromString $ concat
           [ "SELECT ", columnsToString cols, " FROM ", getTableName prefix tn
           , whereSql
-          , " ", show1 o
+          , " ", show o
           , " LIMIT ", show size
           , " OFFSET ", show from
           ]
@@ -277,7 +284,7 @@ select_ :: FromRow b => TableName -> Columns -> From -> Size -> OrderBy -> PSQL 
 select_ tn cols from size o prefix conn = query_ conn sql
   where sql = fromString $ concat
           [ "SELECT ", columnsToString cols, " FROM ", getTableName prefix tn
-          , " ", show1 o
+          , " ", show o
           , " LIMIT ", show size
           , " OFFSET ", show from
           ]
@@ -334,3 +341,22 @@ processAction version (ts, actions) prefix conn =
                   updateVersion ts prefix conn
                   mapM_ (\o -> void $ o prefix conn) actions
                   else pure ()
+
+data OrderBy = Desc String | Asc String | None
+  deriving (Generic, Eq)
+
+instance Hashable OrderBy
+
+desc :: String -> OrderBy
+desc = Desc
+
+asc :: String -> OrderBy
+asc = Asc
+
+none :: OrderBy
+none = None
+
+instance Show OrderBy where
+  show (Desc f) = "ORDER BY " ++ f ++ " DESC"
+  show (Asc f)  = "ORDER BY " ++ f ++ " ASC"
+  show None     = ""

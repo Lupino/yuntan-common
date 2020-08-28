@@ -26,12 +26,14 @@ import           Data.Text.Encoding    (encodeUtf8)
 import qualified Data.Text.Lazy        as LT (Text, toStrict, unpack)
 import qualified Data.Vector           as V (Vector, toList)
 
+-- | Make a case-insensitive hex hash string by hmac sha256
 hmacSHA256 :: B.ByteString -> B.ByteString -> CI B.ByteString
 hmacSHA256 solt = mkHexHash (mkHmacSHA256Hash solt)
 
 mkHmacSHA256Hash :: B.ByteString -> B.ByteString -> Digest SHA256
 mkHmacSHA256Hash solt = hmacGetDigest . hmac solt
 
+-- | Make a case-insensitive hex hash string by a hash function
 mkHexHash :: (B.ByteString -> Digest a) -> B.ByteString -> CI B.ByteString
 mkHexHash mkHash = mk . encodeUtf8 . toText . fromBytes . toBytes . mkHash
 
@@ -44,9 +46,11 @@ sortAndJoinTextParams = join . sort
         join ((k,v):xs) = B.concat [encodeUtf8 $ LT.toStrict k, encodeUtf8 $ LT.toStrict v, join xs]
         join []         = B.empty
 
+-- | Sign a text params use a hash function
 signParams_ :: (B.ByteString -> Digest a) -> [(LT.Text, LT.Text)] -> CI B.ByteString
 signParams_ mkHash = mkHexHash mkHash . sortAndJoinTextParams
 
+-- | Sign a text params use hmac sha256
 signParams :: B.ByteString -> [(LT.Text, LT.Text)] -> CI B.ByteString
 signParams solt = signParams_ (mkHmacSHA256Hash solt)
 
@@ -76,9 +80,11 @@ sortAndJoinJSON = v2b
                          Left n  -> show n
                          Right n -> show n
 
+-- | Sign JSON data use a hash function
 signJSON_ :: (B.ByteString -> Digest a) -> Value -> CI B.ByteString
 signJSON_ mkHash = mkHexHash mkHash . sortAndJoinJSON
 
+-- | Sign JSON data use hmac sha256
 signJSON :: B.ByteString -> Value -> CI B.ByteString
 signJSON solt = signJSON_ (mkHmacSHA256Hash solt)
 
@@ -91,8 +97,10 @@ sortAndJoinRawParams = join . sort
         join []         = B.empty
         join ((k,v):xs) = B.concat [k, v, join xs]
 
+-- | Sign bytestring params use a hash function
 signRaw_ :: (B.ByteString -> Digest a) -> [(B.ByteString, B.ByteString)] -> CI B.ByteString
 signRaw_ mkHash = mkHexHash mkHash . sortAndJoinRawParams
 
+-- | Sign bytestring params use hmac sha256
 signRaw :: B.ByteString -> [(B.ByteString, B.ByteString)] -> CI B.ByteString
 signRaw solt = signRaw_ (mkHmacSHA256Hash solt)

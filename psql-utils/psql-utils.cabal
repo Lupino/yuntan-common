@@ -1,5 +1,5 @@
 name:                psql-utils
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            PostgreSQL Simple util tools.
 description:         An easy way to use postgresql-simple library.
 homepage:            https://github.com/Lupino/yuntan-common/tree/master/psql-utils#readme

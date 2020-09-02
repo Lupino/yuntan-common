@@ -9,8 +9,13 @@
 module Database.PSQL.Types
   ( TablePrefix
 
+  , Connection
   , PSQLPool
   , PSQL
+  , runPSQL
+  , runPSQLPool
+  , runPSQLEnv
+  , getTablePrefix
   , HasPSQL
   , psqlPool
   , tablePrefix
@@ -65,11 +70,12 @@ module Database.PSQL.Types
 
 
 import           Control.Monad                      (void)
+import           Control.Monad.IO.Class             (MonadIO (..))
 import           Data.Hashable                      (Hashable (..))
 import           Data.Int                           (Int64)
 import           Data.List                          (intercalate)
 import           Data.Maybe                         (listToMaybe)
-import           Data.Pool                          (Pool)
+import           Data.Pool                          (Pool, withResource)
 import           Data.String                        (IsString (..))
 import           Database.PostgreSQL.Simple         (Connection, Only (..),
                                                      SqlError (..), ToRow,
@@ -88,12 +94,51 @@ newtype TablePrefix = TablePrefix String
 instance IsString TablePrefix where
   fromString = TablePrefix
 
-type PSQL a = TablePrefix -> Connection -> IO a
 type PSQLPool = Pool Connection
+
+newtype PSQL a = PSQL {unPSQL :: TablePrefix -> Connection -> IO a}
+
+instance Functor PSQL where
+  fmap f a = PSQL $ \p c -> f <$> unPSQL a p c
+  {-# INLINE fmap #-}
+
+instance Applicative PSQL where
+  pure a = PSQL $ \_ _ -> pure a
+  {-# INLINE pure #-}
+  f <*> v = PSQL $ \p c -> unPSQL f p c <*> unPSQL v p c
+  {-# INLINE (<*>) #-}
+
+
+instance Monad PSQL where
+  return a = PSQL $ \_ _ -> return a
+  {-# INLINE return #-}
+  m >>= k = PSQL $ \p c -> do
+    a <- unPSQL m p c
+    unPSQL (k a) p c
+  {-# INLINE (>>=) #-}
+  m >> k = PSQL $ \p c -> unPSQL m p c >> unPSQL k p c
+  {-# INLINE (>>) #-}
+
+instance MonadIO PSQL where
+  liftIO m = PSQL $ \_ _ -> m
+  {-# INLINE liftIO #-}
+
+runPSQL :: TablePrefix -> Connection -> PSQL a -> IO a
+runPSQL prefix conn m = unPSQL m prefix conn
+
+runPSQLPool :: TablePrefix -> PSQLPool -> PSQL a -> IO a
+runPSQLPool prefix pool m = withResource pool $ unPSQL m prefix
+
+getTablePrefix :: PSQL TablePrefix
+getTablePrefix = PSQL $ \p _ -> return p
 
 class HasPSQL u where
   psqlPool    :: u -> PSQLPool
   tablePrefix :: u -> TablePrefix
+
+runPSQLEnv :: (HasPSQL env) => env -> PSQL a -> IO a
+runPSQLEnv env = runPSQLPool (tablePrefix env) (psqlPool env)
+
 
 class HasOtherEnv u a where
   otherEnv :: a -> u
@@ -145,8 +190,8 @@ constraintPrimaryKey prefix tn columns = Column . concat $
   ]
 
 createTable :: TableName -> Columns -> PSQL Int64
-createTable tn cols prefix conn = execute_ conn sql
-  where sql = fromString $ concat
+createTable tn cols = PSQL $ \prefix conn -> execute_ conn (sql prefix)
+  where sql prefix = fromString $ concat
           [ "CREATE TABLE IF NOT EXISTS ", getTableName prefix tn, " ("
           , columnsToString cols
           , ")"
@@ -166,8 +211,8 @@ getIndexName (TablePrefix prefix) (TableName tn) (IndexName name) =
 
 
 createIndex :: Bool -> TableName -> IndexName -> Columns -> PSQL Int64
-createIndex uniq tn idxN cols prefix conn = execute_ conn sql
-  where sql = fromString $ concat
+createIndex uniq tn idxN cols = PSQL $ \prefix conn -> execute_ conn (sql prefix)
+  where sql prefix = fromString $ concat
           [ "CREATE ", uniqWord, "INDEX IF NOT EXISTS ", getIndexName prefix tn idxN
           , " ON " , getTableName prefix tn, "(", columnsToString cols, ")"
           ]
@@ -181,9 +226,9 @@ getOnlyDefault :: FromRow (Only a) => a -> [Only a] -> a
 getOnlyDefault a = maybe a fromOnly . listToMaybe
 
 insert :: ToRow a => TableName -> Columns -> a -> PSQL Int64
-insert tn cols a prefix conn = execute conn sql a
-  where v = take (length cols) $ cycle ["?"]
-        sql = fromString $ concat
+insert tn cols a = PSQL $ \prefix conn -> execute conn (sql prefix) a
+  where v = replicate (length cols) "?"
+        sql prefix = fromString $ concat
           [ "INSERT INTO ", getTableName prefix tn
           , " (", columnsToString cols, ")"
           , " VALUES"
@@ -191,9 +236,9 @@ insert tn cols a prefix conn = execute conn sql a
           ]
 
 insertRet :: (ToRow a, FromRow (Only b)) => TableName -> Columns -> Column -> a -> b -> PSQL b
-insertRet tn cols col a def prefix conn = getOnlyDefault def <$> query conn sql a
-  where v = take (length cols) $ cycle ["?"]
-        sql = fromString $ concat
+insertRet tn cols col a def = PSQL $ \prefix conn -> getOnlyDefault def <$> query conn (sql prefix) a
+  where v = replicate (length cols) "?"
+        sql prefix = fromString $ concat
           [ "INSERT INTO ", getTableName prefix tn
           , " (", columnsToString cols, ")"
           , " VALUES"
@@ -202,7 +247,7 @@ insertRet tn cols col a def prefix conn = getOnlyDefault def <$> query conn sql 
           ]
 
 insertOrUpdate :: ToRow a => TableName -> Columns -> Columns -> Columns -> a -> PSQL Int64
-insertOrUpdate tn uniqCols valCols otherCols a prefix conn = execute conn sql a
+insertOrUpdate tn uniqCols valCols otherCols a = PSQL $ \prefix conn -> execute conn (sql prefix) a
   where cols = uniqCols ++ valCols ++ otherCols
         v = replicate (length cols) "?"
 
@@ -214,7 +259,7 @@ insertOrUpdate tn uniqCols valCols otherCols a prefix conn = execute conn sql a
 
         doSql = if null valCols then " DO NOTHING" else " DO UPDATE SET " ++ setSql
 
-        sql = fromString $ concat
+        sql prefix = fromString $ concat
           [ "INSERT INTO ", getTableName prefix tn
           , " (", columnsToString cols, ")"
           , " VALUES"
@@ -224,10 +269,10 @@ insertOrUpdate tn uniqCols valCols otherCols a prefix conn = execute conn sql a
           ]
 
 update :: ToRow a => TableName -> Columns -> String -> a -> PSQL Int64
-update tn cols partSql a prefix conn = execute conn sql a
+update tn cols partSql a = PSQL $ \prefix conn -> execute conn (sql prefix) a
   where setSql = intercalate ", " $ map appendSet cols
         whereSql = if null partSql then "" else " WHERE " ++ partSql
-        sql = fromString $ concat
+        sql prefix = fromString $ concat
           [ "UPDATE ", getTableName prefix tn
           , " SET ", setSql
           , whereSql
@@ -238,37 +283,35 @@ update tn cols partSql a prefix conn = execute conn sql a
                                | otherwise = col ++ " = ?"
 
 delete :: ToRow a => TableName -> String -> a -> PSQL Int64
-delete tn partSql a prefix conn = execute conn sql a
+delete tn partSql a = PSQL $ \prefix conn -> execute conn (sql prefix) a
   where whereSql = " WHERE " ++ partSql
-        sql = fromString $ concat
+        sql prefix = fromString $ concat
           [ "DELETE FROM ", getTableName prefix tn, whereSql
           ]
 
 delete_ :: TableName -> PSQL Int64
-delete_ tn prefix conn = execute_ conn sql
-  where sql = fromString $ concat
-          [ "DELETE FROM ", getTableName prefix tn
-          ]
+delete_ tn = PSQL $ \prefix conn -> execute_ conn (sql prefix)
+  where sql prefix = fromString $ "DELETE FROM " ++ getTableName prefix tn
+
 
 count :: ToRow a => TableName -> String -> a -> PSQL Int64
-count tn partSql a prefix conn =
-  getOnlyDefault 0 <$> query conn sql a
+count tn partSql a = PSQL $ \prefix conn ->
+  getOnlyDefault 0 <$> query conn (sql prefix) a
   where whereSql = " WHERE " ++ partSql
-        sql = fromString $ concat
+        sql prefix = fromString $ concat
           [ "SELECT count(*) FROM ", getTableName prefix tn, whereSql
           ]
 
 count_ :: TableName -> PSQL Int64
-count_ tn prefix conn =
-  getOnlyDefault 0 <$> query_ conn sql
-  where sql = fromString $ concat
-          [ "SELECT count(*) FROM ", getTableName prefix tn
-          ]
+count_ tn = PSQL $ \prefix conn ->
+  getOnlyDefault 0 <$> query_ conn (sql prefix)
+  where sql prefix = fromString $ "SELECT count(*) FROM " ++ getTableName prefix tn
+
 
 select :: (ToRow a, FromRow b) => TableName -> Columns -> String -> a -> From -> Size -> OrderBy -> PSQL [b]
-select tn cols partSql a from size o prefix conn = query conn sql a
+select tn cols partSql a from size o = PSQL $ \prefix conn ->  query conn (sql prefix) a
   where whereSql = " WHERE " ++ partSql
-        sql = fromString $ concat
+        sql prefix = fromString $ concat
           [ "SELECT ", columnsToString cols, " FROM ", getTableName prefix tn
           , whereSql
           , " ", show o
@@ -277,12 +320,12 @@ select tn cols partSql a from size o prefix conn = query conn sql a
           ]
 
 selectOnly :: (ToRow a, FromRow (Only b)) => TableName -> Column -> String -> a -> From -> Size -> OrderBy -> PSQL [b]
-selectOnly tn col partSql a from size o prefix conn =
-  map fromOnly <$> select tn [col] partSql a from size o prefix conn
+selectOnly tn col partSql a from size o =
+  map fromOnly <$> select tn [col] partSql a from size o
 
 select_ :: FromRow b => TableName -> Columns -> From -> Size -> OrderBy -> PSQL [b]
-select_ tn cols from size o prefix conn = query_ conn sql
-  where sql = fromString $ concat
+select_ tn cols from size o = PSQL $ \prefix conn -> query_ conn (sql prefix)
+  where sql prefix = fromString $ concat
           [ "SELECT ", columnsToString cols, " FROM ", getTableName prefix tn
           , " ", show o
           , " LIMIT ", show size
@@ -290,56 +333,56 @@ select_ tn cols from size o prefix conn = query_ conn sql
           ]
 
 selectOnly_ :: FromRow (Only b) => TableName -> Column -> From -> Size -> OrderBy -> PSQL [b]
-selectOnly_ tn col from size o prefix conn =
-  map fromOnly <$> select_ tn [col] from size o prefix conn
+selectOnly_ tn col from size o =
+  map fromOnly <$> select_ tn [col] from size o
 
 selectOne :: (ToRow a, FromRow b) => TableName -> Columns -> String -> a -> PSQL (Maybe b)
-selectOne tn cols partSql a prefix conn = listToMaybe <$> query conn sql a
+selectOne tn cols partSql a = PSQL $ \prefix conn -> listToMaybe <$> query conn (sql prefix) a
   where whereSql = " WHERE " ++ partSql
-        sql = fromString $ concat
+        sql prefix = fromString $ concat
           [ "SELECT ", columnsToString cols, " FROM ", getTableName prefix tn
           , whereSql
           ]
 
 selectOneOnly :: (ToRow a, FromRow (Only b)) => TableName -> Column -> String -> a -> PSQL (Maybe b)
-selectOneOnly tn col partSql a prefix conn =
-  fmap fromOnly <$> selectOne tn [col] partSql a prefix conn
+selectOneOnly tn col partSql a =
+  fmap fromOnly <$> selectOne tn [col] partSql a
 
 createVersionTable :: PSQL Int64
-createVersionTable prefix conn =
+createVersionTable =
   createTable "version"
     [ "name VARCHAR(10) NOT NULL"
     , "version INT DEFAULT '0'"
     , "PRIMARY KEY (name)"
-    ] prefix conn
+    ]
 
 getCurrentVersion :: PSQL Int64
-getCurrentVersion prefix conn = do
-  void $ createVersionTable prefix conn
-  ts <- selectOneOnly "version" "version" "name = ?" (Only ("version" :: String)) prefix conn
+getCurrentVersion = do
+  void createVersionTable
+  ts <- selectOneOnly "version" "version" "name = ?" (Only ("version" :: String))
   case ts of
     Just v -> pure v
     Nothing  ->
-      insertRet "version" ["name", "version"] "version" ("version" :: String, 0 :: Int) 0 prefix conn
+      insertRet "version" ["name", "version"] "version" ("version" :: String, 0 :: Int) 0
 
 
 updateVersion :: Int64 -> PSQL ()
-updateVersion ts prefix conn =
-  void $ update "version" ["version"] "name = ?" (ts, "version" :: String) prefix conn
+updateVersion ts =
+  void $ update "version" ["version"] "name = ?" (ts, "version" :: String)
 
 type Version a = (Int64, [PSQL a])
 type VersionList a = [Version a]
 
 mergeDatabase :: VersionList a -> PSQL ()
-mergeDatabase versionList prefix conn = do
-  version <- getCurrentVersion prefix conn
-  mapM_ (\v -> processAction version v prefix conn) versionList
+mergeDatabase versionList = do
+  version <- getCurrentVersion
+  mapM_ (processAction version) versionList
 
 processAction :: Int64 -> Version a -> PSQL ()
-processAction version (ts, actions) prefix conn =
+processAction version (ts, actions) =
   if ts > version then do
-                  updateVersion ts prefix conn
-                  mapM_ (\o -> void $ o prefix conn) actions
+                  updateVersion ts
+                  mapM_ void actions
                   else pure ()
 
 data OrderBy = Desc String | Asc String | None

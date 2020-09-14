@@ -1,10 +1,11 @@
-{-# LANGUAGE DeriveGeneric         #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE GADTs                 #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE TypeFamilies               #-}
 
 module Database.PSQL.Types
   ( TablePrefix
@@ -26,6 +27,8 @@ module Database.PSQL.Types
   , otherEnv
 
   , TableName
+  , as
+  , join
   , getTableName
   , Columns
   , createTable
@@ -62,6 +65,8 @@ module Database.PSQL.Types
   , Only (..)
   , SqlError (..)
 
+  , From (..)
+  , Size (..)
   , OrderBy
   , asc
   , desc
@@ -84,15 +89,30 @@ import           Database.PostgreSQL.Simple         (Connection, Only (..),
 import           Database.PostgreSQL.Simple.FromRow (FromRow (..), field)
 import           GHC.Generics                       (Generic)
 
-type From = Int64
-type Size = Int64
+newtype From = From { unFrom :: Int64 }
+  deriving (Generic, Eq, Num, Integral, Real, Ord, Enum)
+instance Show From where
+  show = show . unFrom
 
+instance Hashable From
+
+newtype Size = Size {unSize :: Int64}
+  deriving (Generic, Eq, Num, Integral, Real, Ord, Enum)
+
+instance Show Size where
+  show = show . unSize
+
+instance Hashable Size
 
 newtype TablePrefix = TablePrefix String
   deriving (Show)
 
 instance IsString TablePrefix where
   fromString = TablePrefix
+
+getPrefix :: TablePrefix -> String
+getPrefix (TablePrefix "") = ""
+getPrefix (TablePrefix x)  = x ++ "_"
 
 type PSQLPool = Pool Connection
 
@@ -159,17 +179,28 @@ instance HasOtherEnv u (SimpleEnv u) where
 simpleEnv :: Pool Connection -> TablePrefix -> u -> SimpleEnv u
 simpleEnv pool prefix env0 = SimpleEnv{pc=pool, pf = prefix, pu = env0}
 
-newtype TableName = TableName String
+data TableName =
+  TableName String
+  | TableNameAs TableName String
+  | TableNameJoin TableName TableName
   deriving (Show)
 
 instance IsString TableName where
   fromString = TableName
 
+as :: TableName -> String -> TableName
+tn `as` asName = TableNameAs tn asName
+
+join :: TableName -> TableName -> TableName
+name1 `join` name2 = TableNameJoin name1 name2
+
 getTableName :: TablePrefix -> TableName -> String
-getTableName (TablePrefix "") (TableName name) =
-  concat ["\"", name, "\"" ]
-getTableName (TablePrefix prefix) (TableName name) =
-  concat ["\"", prefix, "_", name, "\"" ]
+getTableName prefix (TableName name) =
+  concat ["\"", getPrefix prefix, name, "\"" ]
+getTableName prefix (TableNameAs name asName) =
+  concat [ getTableName prefix name, " AS ", asName ]
+getTableName prefix (TableNameJoin name1 name2) =
+  concat [ getTableName prefix name1, ", ", getTableName prefix name2 ]
 
 newtype Column = Column { unColumn :: String }
   deriving (Show)
@@ -204,10 +235,9 @@ instance IsString IndexName where
   fromString = IndexName
 
 getIndexName :: TablePrefix -> TableName -> IndexName -> String
-getIndexName (TablePrefix "") (TableName tn) (IndexName name) =
-  concat [ "\"", tn, "_", name, "\"" ]
-getIndexName (TablePrefix prefix) (TableName tn) (IndexName name) =
-  concat [ "\"", prefix, "_", tn , "_", name, "\"" ]
+getIndexName prefix (TableName tn) (IndexName name) =
+  concat [ "\"", getPrefix prefix, tn , "_", name, "\"" ]
+getIndexName _ _ _ = error "no implement"
 
 
 createIndex :: Bool -> TableName -> IndexName -> Columns -> PSQL Int64

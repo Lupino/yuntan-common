@@ -1,5 +1,5 @@
 name:                wreq-helper
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            Wreq response process
 description:         Wreq response process.
 homepage:            https://github.com/Lupino/yuntan-common/tree/master/wreq-helper#readme
@@ -17,9 +17,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     Network.Wreq.Helper
   build-depends:       base >= 4.7 && < 5
-                     , wreq
                      , http-client
-                     , lens
                      , bytestring
                      , aeson
                      , text

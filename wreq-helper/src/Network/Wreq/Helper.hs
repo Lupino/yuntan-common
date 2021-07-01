@@ -15,17 +15,36 @@ module Network.Wreq.Helper
   , eitherToError
   ) where
 
-import           Control.Exception     (try)
-import           Control.Lens          ((^.), (^?))
-import           Data.Aeson            (FromJSON (..), decode)
+
+import           Control.Exception     (Exception, throwIO, try)
+import           Control.Monad         (unless)
+import           Data.Aeson            (FromJSON (..), decode, eitherDecode')
 import           Data.Aeson.Result     (Err, List, Ok, err, throwError, toList,
                                         toOk)
+import qualified Data.ByteString       as B (break, isPrefixOf, isSuffixOf)
 import qualified Data.ByteString.Char8 as B (unpack)
 import qualified Data.ByteString.Lazy  as LB (ByteString, fromStrict)
+import           Data.Maybe            (fromMaybe)
 import           Data.Text             (Text)
 import           Network.HTTP.Client   (HttpException (..),
-                                        HttpExceptionContent (..))
-import           Network.Wreq          (Response, asJSON, responseBody)
+                                        HttpExceptionContent (..), Response,
+                                        responseBody, responseHeaders)
+
+data JSONError = JSONError String
+  deriving (Show)
+
+instance Exception JSONError
+
+asJSON :: FromJSON a => Response LB.ByteString -> IO (Response a)
+asJSON resp = do
+  let contentType = fst . B.break (==59) . fromMaybe "unknown" .
+                    lookup "Content-Type" . responseHeaders $ resp
+  unless ("application/json" `B.isPrefixOf` contentType
+        || ("application/" `B.isPrefixOf` contentType && "+json" `B.isSuffixOf` contentType)) $
+    throwIO . JSONError $ "content type of response is " ++ show contentType
+  case eitherDecode' (responseBody resp) of
+    Left e    -> throwIO (JSONError e)
+    Right val -> return (fmap (const val) resp)
 
 eitherToError :: IO (Either Err a) -> IO a
 eitherToError io  = do
@@ -35,16 +54,14 @@ eitherToError io  = do
     Right v -> pure v
 
 responseValue :: IO (Response a) -> IO a
-responseValue req = do
-  r <- req
-  return $ r ^. responseBody
+responseValue req = responseBody <$> req
 
 responseMaybe :: IO (Response a) -> IO (Maybe a)
 responseMaybe req = do
   e <- try req
   case e of
     Left (_ :: HttpException) -> return Nothing
-    Right r                   -> return $ r ^? responseBody
+    Right r                   -> return . Just $ responseBody r
 
 tryResponse :: IO (Response a) -> IO (Either Err (Response a))
 tryResponse req = do
@@ -68,7 +85,7 @@ responseEither req = do
   rsp <- tryResponse req
   case rsp of
     Left e  -> return $ Left e
-    Right r -> return . Right $ r ^. responseBody
+    Right r -> return . Right $ responseBody r
 
 responseEither' :: IO (Response LB.ByteString) -> IO (Either Err ())
 responseEither' req = do

@@ -1,7 +1,7 @@
 name:                wreq-helper
 version:             0.2.0.0
-synopsis:            Wreq response process
-description:         Wreq response process.
+synopsis:            HTTP/HTTPS response process
+description:         HTTP/HTTPS response process.
 homepage:            https://github.com/Lupino/yuntan-common/tree/master/wreq-helper#readme
 license:             BSD3
 license-file:        LICENSE

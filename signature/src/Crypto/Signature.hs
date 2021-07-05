@@ -10,21 +10,21 @@ module Crypto.Signature
   , signRaw_
   ) where
 
-import           Crypto.Hash           (Digest, SHA256)
-import           Crypto.MAC            (HMAC (..), hmac)
-import           Data.Aeson            (Value (..))
-import           Data.Byteable         (toBytes)
-import qualified Data.ByteString.Char8 as B (ByteString, concat, empty, pack,
-                                             unpack)
-import           Data.CaseInsensitive  (CI, mk)
-import qualified Data.HashMap.Lazy     as LH (HashMap, toList)
-import           Data.HexString        (fromBytes, toText)
-import           Data.List             (sortOn)
-import           Data.Scientific       (Scientific, floatingOrInteger)
-import qualified Data.Text             as T (Text, unpack)
-import           Data.Text.Encoding    (encodeUtf8)
-import qualified Data.Text.Lazy        as LT (Text, toStrict, unpack)
-import qualified Data.Vector           as V (Vector, toList)
+import           Crypto.Hash            (Digest, SHA256)
+import           Crypto.MAC             (HMAC (..), hmac)
+import           Data.Aeson             (Value (..))
+import qualified Data.ByteString.Base16 as B16 (encode)
+import qualified Data.ByteString.Char8  as B (ByteString, concat, empty, pack,
+                                              unpack)
+import           Data.Byteable          (toBytes)
+import           Data.CaseInsensitive   (CI, mk)
+import qualified Data.HashMap.Lazy      as LH (HashMap, toList)
+import           Data.List              (sortOn)
+import           Data.Scientific        (Scientific, floatingOrInteger)
+import qualified Data.Text              as T (Text, unpack)
+import           Data.Text.Encoding     (encodeUtf8)
+import qualified Data.Text.Lazy         as LT (Text, toStrict, unpack)
+import qualified Data.Vector            as V (Vector, toList)
 
 -- | Make a case-insensitive hex hash string by hmac sha256
 hmacSHA256 :: B.ByteString -> B.ByteString -> CI B.ByteString
@@ -35,7 +35,7 @@ mkHmacSHA256Hash solt = hmacGetDigest . hmac solt
 
 -- | Make a case-insensitive hex hash string by a hash function
 mkHexHash :: (B.ByteString -> Digest a) -> B.ByteString -> CI B.ByteString
-mkHexHash mkHash = mk . encodeUtf8 . toText . fromBytes . toBytes . mkHash
+mkHexHash mkHash = mk . B16.encode . toBytes . mkHash
 
 sortAndJoinTextParams :: [(LT.Text, LT.Text)] -> B.ByteString
 sortAndJoinTextParams = join . sort

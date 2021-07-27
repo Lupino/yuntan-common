@@ -12,6 +12,9 @@ module Haxl.RedisCache
   , remove
   , removeAll
   , initRedisState
+  , set
+  , get
+  , genKey
   ) where
 
 import           Control.Concurrent.Async
@@ -25,7 +28,8 @@ import qualified Data.ByteString          as B (concat)
 import           Data.ByteString.Lazy     (toStrict)
 import           Data.Hashable            (Hashable (..))
 import           Data.Typeable            (Typeable)
-import           Database.Redis           (Connection, del, get, runRedis, set)
+import           Database.Redis           (Connection, runRedis)
+import qualified Database.Redis           as R (del, get, set)
 import           Haxl.Core                hiding (fetchReq)
 
 newtype Conn = Conn Connection
@@ -36,17 +40,17 @@ instance Eq Conn where
 instance Show Conn where
   show _ = "Conn"
 
-genKey :: ByteString -> ByteString -> ByteString
-genKey pref k = B.concat [pref, ":", k]
+genKey_ :: ByteString -> ByteString -> ByteString
+genKey_ pref k = B.concat [pref, ":", k]
 
 getData_ :: Connection -> ByteString -> IO (Maybe ByteString)
-getData_ conn k = runRedis conn $ either (const Nothing) id <$> get k
+getData_ conn k = runRedis conn $ either (const Nothing) id <$> R.get k
 
 setData_ :: Connection -> ByteString -> ByteString -> IO ()
-setData_ conn k = runRedis conn . void . set k
+setData_ conn k = runRedis conn . void . R.set k
 
 delData_ :: Connection -> [ByteString] -> IO ()
-delData_ conn ks = runRedis conn . void $ del ks
+delData_ conn ks = runRedis conn . void $ R.del ks
 
 -- Data source implementation.
 
@@ -54,6 +58,7 @@ data RedisReq a where
   GetData :: Conn -> ByteString -> RedisReq (Maybe ByteString)
   SetData :: Conn -> ByteString -> ByteString -> RedisReq ()
   DelData :: Conn -> [ByteString] -> RedisReq ()
+  GenKey  :: ByteString -> RedisReq ByteString
   deriving (Typeable)
 
 deriving instance Eq (RedisReq a)
@@ -61,6 +66,7 @@ instance Hashable (RedisReq a) where
   hashWithSalt s (GetData _ k)   = hashWithSalt s (1::Int, k)
   hashWithSalt s (SetData _ k v) = hashWithSalt s (2::Int, k, v)
   hashWithSalt s (DelData _ ks)  = hashWithSalt s (3::Int, ks)
+  hashWithSalt s (GenKey k)      = hashWithSalt s (4::Int, k)
 
 deriving instance Show (RedisReq a)
 instance ShowP RedisReq where showp = show
@@ -98,9 +104,10 @@ fetchSync pref (BlockedFetch req rvar) = do
     Right a -> putSuccess rvar a
 
 fetchReq :: ByteString -> RedisReq a -> IO a
-fetchReq pref (GetData (Conn conn) k)   = getData_ conn $ genKey pref k
-fetchReq pref (SetData (Conn conn) k v) = setData_ conn (genKey pref k) v
-fetchReq pref (DelData (Conn conn) ks)  = delData_ conn $ map (genKey pref) ks
+fetchReq pref (GetData (Conn conn) k)   = getData_ conn $ genKey_ pref k
+fetchReq pref (SetData (Conn conn) k v) = setData_ conn (genKey_ pref k) v
+fetchReq pref (DelData (Conn conn) ks)  = delData_ conn $ map (genKey_ pref) ks
+fetchReq pref (GenKey k)                = return $ genKey_ pref k
 
 initRedisState :: Int -> ByteString -> State RedisReq
 initRedisState = RedisState
@@ -159,3 +166,20 @@ removeAll redis k = do
   case h of
     Nothing   -> return ()
     Just conn -> delData conn k
+
+get :: FromJSON v => (u -> Maybe Connection) -> ByteString -> GenHaxl u w (Maybe v)
+get redis k = do
+  h <- redis <$> env userEnv
+  case h of
+    Nothing   -> return Nothing
+    Just conn -> getData conn k
+
+set :: ToJSON v => (u -> Maybe Connection) -> ByteString -> v -> GenHaxl u w ()
+set redis k v = do
+  h <- redis <$> env userEnv
+  case h of
+    Nothing   -> return ()
+    Just conn -> setData conn k v
+
+genKey :: ByteString -> GenHaxl v w ByteString
+genKey = dataFetch . GenKey

@@ -57,10 +57,13 @@ module Database.PSQL.Types
 
   , VersionList
   , mergeDatabase
-
+  , withTransaction
 
   -- re-exports
   , FromRow (..)
+  , FromField (..)
+  , ToRow (..)
+  , ToField (..)
   , field
   , Only (..)
   , SqlError (..)
@@ -74,20 +77,23 @@ module Database.PSQL.Types
   ) where
 
 
-import           Control.Monad                      (void)
-import           Control.Monad.IO.Class             (MonadIO (..))
-import           Data.Hashable                      (Hashable (..))
-import           Data.Int                           (Int64)
-import           Data.List                          (intercalate)
-import           Data.Maybe                         (listToMaybe)
-import           Data.Pool                          (Pool, withResource)
-import           Data.String                        (IsString (..))
-import           Database.PostgreSQL.Simple         (Connection, Only (..),
-                                                     SqlError (..), ToRow,
-                                                     execute, execute_, query,
-                                                     query_)
-import           Database.PostgreSQL.Simple.FromRow (FromRow (..), field)
-import           GHC.Generics                       (Generic)
+import           Control.Monad                        (void)
+import           Control.Monad.IO.Class               (MonadIO (..))
+import           Data.Hashable                        (Hashable (..))
+import           Data.Int                             (Int64)
+import           Data.List                            (intercalate)
+import           Data.Maybe                           (listToMaybe)
+import           Data.Pool                            (Pool, withResource)
+import           Data.String                          (IsString (..))
+import           Database.PostgreSQL.Simple           (Connection, Only (..),
+                                                       SqlError (..), execute,
+                                                       execute_, query, query_)
+import qualified Database.PostgreSQL.Simple           as L (withTransaction)
+import           Database.PostgreSQL.Simple.FromField (FromField (..))
+import           Database.PostgreSQL.Simple.FromRow   (FromRow (..), field)
+import           Database.PostgreSQL.Simple.ToField   (ToField (..))
+import           Database.PostgreSQL.Simple.ToRow     (ToRow (..))
+import           GHC.Generics                         (Generic)
 
 newtype From = From { unFrom :: Int64 }
   deriving (Generic, Eq, Num, Integral, Real, Ord, Enum)
@@ -213,6 +219,9 @@ type Columns = [Column]
 columnsToString :: Columns -> String
 columnsToString = intercalate ", " . map unColumn
 
+columnsToString' :: Columns -> String
+columnsToString' = intercalate ", " . map (takeWhile (/='=') . unColumn)
+
 constraintPrimaryKey :: TablePrefix -> TableName -> Columns -> Column
 constraintPrimaryKey prefix tn columns = Column . concat $
   [ "CONSTRAINT "
@@ -291,7 +300,7 @@ insertOrUpdate tn uniqCols valCols otherCols a = PSQL $ \prefix conn -> execute 
 
         sql prefix = fromString $ concat
           [ "INSERT INTO ", getTableName prefix tn
-          , " (", columnsToString cols, ")"
+          , " (", columnsToString' cols, ")"
           , " VALUES"
           , " (", columnsToString v, ")"
           , " ON CONFLICT (", columnsToString uniqCols, ")"
@@ -404,7 +413,7 @@ type Version a = (Int64, [PSQL a])
 type VersionList a = [Version a]
 
 mergeDatabase :: VersionList a -> PSQL ()
-mergeDatabase versionList = do
+mergeDatabase versionList = withTransaction $ do
   version <- getCurrentVersion
   mapM_ (processAction version) versionList
 
@@ -433,3 +442,7 @@ instance Show OrderBy where
   show (Desc f) = "ORDER BY " ++ f ++ " DESC"
   show (Asc f)  = "ORDER BY " ++ f ++ " ASC"
   show None     = ""
+
+withTransaction :: PSQL a -> PSQL a
+withTransaction m = PSQL $ \prefix conn ->
+  L.withTransaction conn $ runPSQL prefix conn m

@@ -12,6 +12,7 @@ module Database.PSQL.Types
 
   , Connection
   , PSQLPool
+  , createPSQLPool
   , PSQL
   , runPSQL
   , runPSQLPool
@@ -79,15 +80,20 @@ module Database.PSQL.Types
 
 import           Control.Monad                        (void)
 import           Control.Monad.IO.Class               (MonadIO (..))
+import           Data.ByteString                      (ByteString)
 import           Data.Hashable                        (Hashable (..))
 import           Data.Int                             (Int64)
 import           Data.List                            (intercalate)
 import           Data.Maybe                           (listToMaybe)
-import           Data.Pool                            (Pool, withResource)
+import           Data.Pool                            (Pool, createPool,
+                                                       withResource)
 import           Data.String                          (IsString (..))
+import           Data.Time                            (NominalDiffTime)
 import           Database.PostgreSQL.Simple           (Connection, Only (..),
-                                                       SqlError (..), execute,
-                                                       execute_, query, query_)
+                                                       SqlError (..), close,
+                                                       connectPostgreSQL,
+                                                       execute, execute_, query,
+                                                       query_)
 import qualified Database.PostgreSQL.Simple           as L (withTransaction)
 import           Database.PostgreSQL.Simple.FromField (FromField (..))
 import           Database.PostgreSQL.Simple.FromRow   (FromRow (..), field)
@@ -121,6 +127,9 @@ getPrefix (TablePrefix "") = ""
 getPrefix (TablePrefix x)  = x ++ "_"
 
 type PSQLPool = Pool Connection
+
+createPSQLPool :: ByteString -> Int -> NominalDiffTime -> Int -> IO PSQLPool
+createPSQLPool path = createPool (connectPostgreSQL path) close
 
 newtype PSQL a = PSQL {unPSQL :: TablePrefix -> Connection -> IO a}
 

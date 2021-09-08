@@ -24,6 +24,7 @@ library
                      , aeson
                      , postgresql-simple
                      , hashable
+                     , bytestring
   default-language:    Haskell2010
 
 source-repository head

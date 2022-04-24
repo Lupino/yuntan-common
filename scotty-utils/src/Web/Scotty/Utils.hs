@@ -19,7 +19,7 @@ import           Web.Scotty.Trans   (ActionT, Parsable, ScottyError, json,
 import qualified Data.Aeson.Result  as R (Err, List, err, fromList, fromOk, ok)
 
 import           Data.Aeson         (ToJSON)
-import           Data.Text          (Text)
+import           Data.Aeson.Key     (Key)
 import qualified Data.Text.Lazy     as LT (Text)
 
 maybeNotFound :: (ToJSON a, ScottyError e, Monad m) => String -> Maybe a -> ActionT e m ()
@@ -37,7 +37,7 @@ eitherNotFound (Left e)  = status status404 >> json e
 err :: (ScottyError e, Monad m) => Status -> String -> ActionT e m ()
 err st msg = status st >> json (R.err msg)
 
-ok :: (ToJSON a, ScottyError e, Monad m) => Text -> a -> ActionT e m ()
+ok :: (ToJSON a, ScottyError e, Monad m) => Key -> a -> ActionT e m ()
 ok key = json . R.fromOk key . R.ok
 
 errNotFound :: (ScottyError e, Monad m) => String -> ActionT e m ()
@@ -46,7 +46,7 @@ errNotFound = err status404
 errBadRequest :: (ScottyError e, Monad m) => String -> ActionT e m ()
 errBadRequest = err status400
 
-okListResult :: (ToJSON a, ScottyError e, Monad m) => Text -> R.List a -> ActionT e m ()
+okListResult :: (ToJSON a, ScottyError e, Monad m) => Key -> R.List a -> ActionT e m ()
 okListResult key = json . R.fromList key
 
 safeParam ::(Parsable a, ScottyError e, Monad m) => LT.Text -> a -> ActionT e m a

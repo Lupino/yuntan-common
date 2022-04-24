@@ -1,5 +1,5 @@
 name:                scotty-utils
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            Scotty utils library
 description:         Scotty utils library.
 homepage:            https://github.com/Lupino/yuntan-common/tree/master/scotty-utils#readme
@@ -19,7 +19,7 @@ library
   exposed-modules:     Web.Scotty.Utils
   build-depends:       base >= 4.7 && < 5
                      , http-types
-                     , aeson
+                     , aeson >= 2.0
                      , scotty
                      , text
                      , aeson-result

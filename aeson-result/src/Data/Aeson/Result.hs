@@ -26,8 +26,8 @@ import           Data.Aeson        (FromJSON (..), Result (..), ToJSON (..),
                                     Value, fromJSON, object, withObject, (.:),
                                     (.=))
 import           Data.Aeson.Helper (replace)
+import           Data.Aeson.Key    (Key)
 import           Data.Int          (Int64)
-import           Data.Text         (Text)
 
 type From  = Int64
 type Size  = Int64
@@ -73,14 +73,14 @@ ok :: a -> Ok a
 ok = Ok
 
 -- | Make a JSON result to Ok
-toOk :: FromJSON a => Text -> Value -> Maybe (Ok a)
+toOk :: FromJSON a => Key -> Value -> Maybe (Ok a)
 toOk okey v =
   case fromJSON (replace okey "result" v) of
     Success v' -> Just v'
     _          -> Nothing
 
 -- | Make an Ok to JSON
-fromOk :: ToJSON a => Text -> Ok a -> Value
+fromOk :: ToJSON a => Key -> Ok a -> Value
 fromOk key ret = replace "result" key $ toJSON ret
 
 -- | Make list result look like '{"users": ["user1"], "total": 1, "from": 0, "size": 10}'
@@ -132,12 +132,12 @@ merge t List
   }
 
 -- | Make a JSON to List
-toList :: FromJSON a => Text -> Value -> Maybe (List a)
+toList :: FromJSON a => Key -> Value -> Maybe (List a)
 toList okey v =
   case fromJSON (replace okey "result" v) of
     Success v' -> Just v'
     _          -> Nothing
 
 -- | Make a List to JSON
-fromList :: ToJSON a => Text -> List a -> Value
+fromList :: ToJSON a => Key -> List a -> Value
 fromList key ret = replace "result" key $ toJSON ret

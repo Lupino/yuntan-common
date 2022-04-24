@@ -1,5 +1,5 @@
 name:                aeson-helper
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            Aeson helper func
 description:         Aeson helper func: replace union difference pick
 homepage:            https://github.com/Lupino/yuntan-common/tree/master/aeson-helper#readme
@@ -18,9 +18,8 @@ library
 
   exposed-modules:     Data.Aeson.Helper
   build-depends:       base >= 4.7 && < 5
-                     , unordered-containers
                      , text
-                     , aeson
+                     , aeson >= 2.0
                      , vector
   default-language:    Haskell2010
 

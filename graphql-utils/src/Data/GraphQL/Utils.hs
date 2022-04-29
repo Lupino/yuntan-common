@@ -17,11 +17,12 @@ module Data.GraphQL.Utils
 import           Control.Applicative   (Alternative (..))
 import qualified Data.Aeson            as A (Value (..))
 import qualified Data.Aeson.Helper     as J (pick)
+import           Data.Aeson.Key        (Key, toText)
+import qualified Data.Aeson.KeyMap     as KeyMap (toList)
 import           Data.GraphQL.AST      (Name)
 import           Data.GraphQL.AST.Core (ObjectField)
 import           Data.GraphQL.Schema   (Argument (..), Resolver, Value (..),
                                         array, object, scalar, scalarA)
-import qualified Data.HashMap.Strict   as HM (toList)
 import           Data.Maybe            (fromMaybe, mapMaybe)
 import           Data.Text             (Text)
 import qualified Data.Vector           as V (Vector, head, null, toList)
@@ -74,7 +75,7 @@ getList n argv =
     _                    -> Nothing
 
 value :: Alternative f => Name -> A.Value -> Resolver f
-value k (A.Object v) = object k . listToResolver $ HM.toList v
+value k (A.Object v) = object k . listToResolver $ KeyMap.toList v
 value k (A.Array v)  = if isO v then array k (map value' $ V.toList v)
                                 else scalar k v
 value k v            = scalar k v
@@ -88,12 +89,12 @@ isO v | V.null v  = False
       | otherwise = isOv $ V.head v
 
 value' :: Alternative f => A.Value -> [Resolver f]
-value' (A.Object v) = listToResolver $ HM.toList v
+value' (A.Object v) = listToResolver $ KeyMap.toList v
 value' _            = []
 
-listToResolver :: Alternative f => [(Text, A.Value)] -> [Resolver f]
+listToResolver :: Alternative f => [(Key, A.Value)] -> [Resolver f]
 listToResolver []          = []
-listToResolver ((k, v):xs) = value k v : listToResolver xs
+listToResolver ((k, v):xs) = value (toText k) v : listToResolver xs
 
 pick :: Alternative f => Name -> A.Value -> Resolver f
 pick n v = scalarA n $ \args -> pure $ J.pick (keys args) v

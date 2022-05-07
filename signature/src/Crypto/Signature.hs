@@ -13,15 +13,16 @@ module Crypto.Signature
 import           Crypto.Hash            (Digest, SHA256)
 import           Crypto.MAC             (HMAC (..), hmac)
 import           Data.Aeson             (Value (..))
+import           Data.Aeson.Key         (Key, toText)
+import           Data.Aeson.KeyMap      (KeyMap)
+import qualified Data.Aeson.KeyMap      as KeyMap (toList)
+import           Data.Byteable          (toBytes)
 import qualified Data.ByteString.Base16 as B16 (encode)
 import qualified Data.ByteString.Char8  as B (ByteString, concat, empty, pack,
                                               unpack)
-import           Data.Byteable          (toBytes)
 import           Data.CaseInsensitive   (CI, mk)
-import qualified Data.HashMap.Lazy      as LH (HashMap, toList)
 import           Data.List              (sortOn)
 import           Data.Scientific        (Scientific, floatingOrInteger)
-import qualified Data.Text              as T (Text, unpack)
 import           Data.Text.Encoding     (encodeUtf8)
 import qualified Data.Text.Lazy         as LT (Text, toStrict, unpack)
 import qualified Data.Vector            as V (Vector, toList)
@@ -56,18 +57,18 @@ signParams solt = signParams_ (mkHmacSHA256Hash solt)
 
 sortAndJoinJSON :: Value -> B.ByteString
 sortAndJoinJSON = v2b
-  where sortHashMap :: LH.HashMap T.Text Value -> [(T.Text, Value)]
-        sortHashMap = sortOn (\(k, _) -> T.unpack k) . LH.toList
+  where sortKeyMap :: KeyMap Value -> [(Key, Value)]
+        sortKeyMap = sortOn fst . KeyMap.toList
 
-        joinList :: [(T.Text, Value)] -> B.ByteString
+        joinList :: [(Key, Value)] -> B.ByteString
         joinList []          = B.empty
-        joinList ((k, v):xs) = B.concat [encodeUtf8 k, v2b v, joinList xs]
+        joinList ((k, v):xs) = B.concat [encodeUtf8 $ toText k, v2b v, joinList xs]
 
         joinArray :: V.Vector Value -> B.ByteString
         joinArray = B.concat . map v2b . V.toList
 
         v2b :: Value -> B.ByteString
-        v2b (Object v)   = (joinList . sortHashMap) v
+        v2b (Object v)   = (joinList . sortKeyMap) v
         v2b (Array v)    = joinArray v
         v2b (String v)   = encodeUtf8 v
         v2b (Number v)   = B.pack $ showNumber v

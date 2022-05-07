@@ -21,7 +21,6 @@ library
                      , bytestring
                      , vector
                      , aeson
-                     , unordered-containers
                      , text
                      , scientific
                      , cryptohash

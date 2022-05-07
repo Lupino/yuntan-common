@@ -19,13 +19,13 @@ module Network.Wreq.Helper
 import           Control.Exception     (Exception, throwIO, try)
 import           Control.Monad         (unless)
 import           Data.Aeson            (FromJSON (..), decode, eitherDecode')
+import           Data.Aeson.Key        (Key)
 import           Data.Aeson.Result     (Err, List, Ok, err, throwError, toList,
                                         toOk)
 import qualified Data.ByteString       as B (break, isPrefixOf, isSuffixOf)
 import qualified Data.ByteString.Char8 as B (unpack)
 import qualified Data.ByteString.Lazy  as LB (ByteString, fromStrict)
 import           Data.Maybe            (fromMaybe)
-import           Data.Text             (Text)
 import           Network.HTTP.Client   (HttpException (..),
                                         HttpExceptionContent (..), Response,
                                         responseBody, responseHeaders)
@@ -100,7 +100,9 @@ responseEitherJSON req = responseEither $ asJSON =<< req
 responseJSON :: FromJSON a => IO (Response LB.ByteString) -> IO a
 responseJSON = eitherToError . responseEitherJSON
 
-responseOk :: FromJSON a => Text -> IO (Response LB.ByteString) -> IO (Either Err (Ok a))
+responseOk
+  :: FromJSON a
+  => Key -> IO (Response LB.ByteString) -> IO (Either Err (Ok a))
 responseOk okey req = do
   rsp <- responseEitherJSON req
   case rsp of
@@ -109,10 +111,14 @@ responseOk okey req = do
                  Just v  -> return $ Right v
                  Nothing -> return . Left $ err "Invalid Result"
 
-responseOk_ :: FromJSON a => Text -> IO (Response LB.ByteString) -> IO (Ok a)
+responseOk_
+  :: FromJSON a
+  => Key -> IO (Response LB.ByteString) -> IO (Ok a)
 responseOk_ okey req = eitherToError (responseOk okey req)
 
-responseList :: FromJSON a => Text -> IO (Response LB.ByteString) -> IO (Either Err (List a))
+responseList
+  :: FromJSON a
+  => Key -> IO (Response LB.ByteString) -> IO (Either Err (List a))
 responseList okey req = do
   rsp <- responseEitherJSON req
   case rsp of
@@ -121,5 +127,7 @@ responseList okey req = do
                  Just v  -> return $ Right v
                  Nothing -> return . Left $ err "Invalid Result"
 
-responseList_ :: FromJSON a => Text -> IO (Response LB.ByteString) -> IO (List a)
+responseList_
+  :: FromJSON a
+  => Key -> IO (Response LB.ByteString) -> IO (List a)
 responseList_ okey req = eitherToError (responseList okey req)

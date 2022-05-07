@@ -20,7 +20,6 @@ library
                      , http-client
                      , bytestring
                      , aeson
-                     , text
                      , aeson-result
   default-language:    Haskell2010
 

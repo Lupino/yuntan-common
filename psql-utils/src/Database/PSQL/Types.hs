@@ -85,10 +85,9 @@ import           Data.Hashable                        (Hashable (..))
 import           Data.Int                             (Int64)
 import           Data.List                            (intercalate)
 import           Data.Maybe                           (listToMaybe)
-import           Data.Pool                            (Pool, createPool,
-                                                       withResource)
+import           Data.Pool                            (Pool, defaultPoolConfig,
+                                                       newPool, withResource)
 import           Data.String                          (IsString (..))
-import           Data.Time                            (NominalDiffTime)
 import           Database.PostgreSQL.Simple           (Connection, Only (..),
                                                        SqlError (..), close,
                                                        connectPostgreSQL,
@@ -128,8 +127,9 @@ getPrefix (TablePrefix x)  = x ++ "_"
 
 type PSQLPool = Pool Connection
 
-createPSQLPool :: ByteString -> Int -> NominalDiffTime -> Int -> IO PSQLPool
-createPSQLPool path = createPool (connectPostgreSQL path) close
+createPSQLPool :: ByteString -> Double -> Int -> IO PSQLPool
+createPSQLPool path idleTime =
+  newPool . defaultPoolConfig (connectPostgreSQL path) close idleTime
 
 newtype PSQL a = PSQL {unPSQL :: TablePrefix -> Connection -> IO a}
 
@@ -145,14 +145,10 @@ instance Applicative PSQL where
 
 
 instance Monad PSQL where
-  return a = PSQL $ \_ _ -> return a
-  {-# INLINE return #-}
   m >>= k = PSQL $ \p c -> do
     a <- unPSQL m p c
     unPSQL (k a) p c
   {-# INLINE (>>=) #-}
-  m >> k = PSQL $ \p c -> unPSQL m p c >> unPSQL k p c
-  {-# INLINE (>>) #-}
 
 instance MonadIO PSQL where
   liftIO m = PSQL $ \_ _ -> m

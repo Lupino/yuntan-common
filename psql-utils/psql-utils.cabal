@@ -20,7 +20,6 @@ library
                      , Database.PSQL.Types
   build-depends:       base >= 4.7 && < 5
                      , resource-pool
-                     , time
                      , aeson
                      , postgresql-simple
                      , hashable

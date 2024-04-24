@@ -13,7 +13,6 @@ module Haxl.RedisCache
   , remove
   , removeAll
   , initRedisState
-  , setRedisPrefix
   , set
   , get
   , genKey
@@ -29,8 +28,6 @@ import           Data.ByteString          (ByteString)
 import qualified Data.ByteString          as B (concat)
 import           Data.ByteString.Lazy     (toStrict)
 import           Data.Hashable            (Hashable (..))
-import           Data.IORef               (IORef, newIORef, readIORef,
-                                           writeIORef)
 import           Data.Typeable            (Typeable)
 import           Database.Redis           (Connection, runRedis)
 import qualified Database.Redis           as R (del, get, set)
@@ -76,7 +73,7 @@ deriving instance Show (RedisReq a)
 instance ShowP RedisReq where showp = show
 
 instance StateKey RedisReq where
-  data State RedisReq = RedisState { numThreads :: Int, redisPrefix :: IORef ByteString }
+  data State RedisReq = RedisState { numThreads :: Int, redisPrefix :: ByteString }
 
 instance DataSourceName RedisReq where
   dataSourceName _ = "RedisDataSource"
@@ -92,8 +89,7 @@ doFetch
 
 doFetch _state _flags _ = AsyncFetch $ \reqs inner -> do
   sem <- newQSem $ numThreads _state
-  pref <- readIORef $ redisPrefix _state
-  asyncs <- mapM (fetchAsync sem pref) reqs
+  asyncs <- mapM (fetchAsync sem (redisPrefix _state)) reqs
   inner
   mapM_ wait asyncs
 
@@ -114,14 +110,8 @@ fetchReq pref (SetData (Conn conn) k v) = setData_ conn (genKey_ pref k) v
 fetchReq pref (DelData (Conn conn) ks)  = delData_ conn $ map (genKey_ pref) ks
 fetchReq pref (GenKey k)                = return $ genKey_ pref k
 
-initRedisState :: Int -> ByteString -> IO (State RedisReq)
-initRedisState numThreads pref = do
-  redisPrefix <- newIORef pref
-  return $ RedisState {..}
-
-
-setRedisPrefix :: State RedisReq -> ByteString -> IO ()
-setRedisPrefix ds = writeIORef (redisPrefix ds)
+initRedisState :: Int -> ByteString -> State RedisReq
+initRedisState = RedisState
 
 getData :: FromJSON v => Connection -> ByteString -> GenHaxl u w (Maybe v)
 getData conn k = maybe Nothing decodeStrict <$> dataFetch (GetData (Conn conn) k)

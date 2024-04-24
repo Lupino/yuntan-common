@@ -3,16 +3,23 @@ module Web.Scotty.Haxl
   , ScottyH
   ) where
 
-import           Control.Monad.IO.Class (MonadIO (..))
-import           Haxl.Core              (GenHaxl)
-import           Haxl.Core.Monad        (unsafeLiftIO)
-import           Web.Scotty.Trans       (ActionT, ScottyT)
 
-import qualified Data.Text.Lazy         as LT (Text)
+import           Control.Monad.IO.Class  (MonadIO (..))
+import           Control.Monad.IO.Unlift (MonadUnliftIO (..))
+import           Haxl.Core               (runHaxl)
+import           Haxl.Core.Monad         (GenHaxl (..), Result (..),
+                                          unsafeLiftIO)
+import           Web.Scotty.Trans        (ActionT, ScottyT)
 
-type ActionH u w b = ActionT LT.Text (GenHaxl u w) b
-type ScottyH u w b = ScottyT LT.Text (GenHaxl u w) b
+
+type ActionH u w b = ActionT (GenHaxl u w) b
+type ScottyH u w b = ScottyT (GenHaxl u w) b
 
 instance MonadIO (GenHaxl u w) where
   liftIO = unsafeLiftIO
 
+
+instance Monoid w => MonadUnliftIO (GenHaxl u w) where
+  withRunInIO inner =
+    GenHaxl $ \env ->
+      Done <$> inner (runHaxl env)

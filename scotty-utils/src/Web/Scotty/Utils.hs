@@ -1,4 +1,5 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Web.Scotty.Utils
   ( maybeNotFound
@@ -9,45 +10,52 @@ module Web.Scotty.Utils
   , errNotFound
   , errBadRequest
   , okListResult
-  , safeParam
+  , safeQueryParam
+  , safeFormParam
   ) where
 
-import           Network.HTTP.Types (Status, status400, status404)
-import           Web.Scotty.Trans   (ActionT, Parsable, ScottyError, json,
-                                     param, rescue, status)
 
-import qualified Data.Aeson.Result  as R (Err, List, err, fromList, fromOk, ok)
+import           Control.Exception       (SomeException)
+import           Control.Monad.IO.Class  (MonadIO)
+import           Control.Monad.IO.Unlift (MonadUnliftIO)
+import           Data.Aeson              (ToJSON)
+import           Data.Aeson.Key          (Key)
+import qualified Data.Aeson.Result       as R (Err, List, err, fromList, fromOk,
+                                               ok)
+import qualified Data.Text.Lazy          as LT (Text)
+import           Network.HTTP.Types      (Status, status400, status404)
+import           Web.Scotty.Trans        (ActionT, Parsable, formParam, json,
+                                          queryParam, rescue, status)
 
-import           Data.Aeson         (ToJSON)
-import           Data.Aeson.Key     (Key)
-import qualified Data.Text.Lazy     as LT (Text)
-
-maybeNotFound :: (ToJSON a, ScottyError e, Monad m) => String -> Maybe a -> ActionT e m ()
+maybeNotFound :: (ToJSON a, MonadIO m) => String -> Maybe a -> ActionT m ()
 maybeNotFound _ (Just a)  = json a
 maybeNotFound obj Nothing = err status404 $ obj ++ " not found."
 
-eitherBadRequest :: (ToJSON a, ScottyError e, Monad m) => Either R.Err a -> ActionT e m ()
+eitherBadRequest :: (ToJSON a, MonadIO m) => Either R.Err a -> ActionT m ()
 eitherBadRequest (Right a) = json a
 eitherBadRequest (Left e)  = status status400 >> json e
 
-eitherNotFound :: (ToJSON a, ScottyError e, Monad m) => Either R.Err a -> ActionT e m ()
+eitherNotFound :: (ToJSON a, MonadIO m) => Either R.Err a -> ActionT m ()
 eitherNotFound (Right a) = json a
 eitherNotFound (Left e)  = status status404 >> json e
 
-err :: (ScottyError e, Monad m) => Status -> String -> ActionT e m ()
+err :: MonadIO m => Status -> String -> ActionT m ()
 err st msg = status st >> json (R.err msg)
 
-ok :: (ToJSON a, ScottyError e, Monad m) => Key -> a -> ActionT e m ()
+ok :: (ToJSON a, MonadIO m) => Key -> a -> ActionT m ()
 ok key = json . R.fromOk key . R.ok
 
-errNotFound :: (ScottyError e, Monad m) => String -> ActionT e m ()
+errNotFound :: MonadIO m => String -> ActionT m ()
 errNotFound = err status404
 
-errBadRequest :: (ScottyError e, Monad m) => String -> ActionT e m ()
+errBadRequest :: MonadIO m => String -> ActionT m ()
 errBadRequest = err status400
 
-okListResult :: (ToJSON a, ScottyError e, Monad m) => Key -> R.List a -> ActionT e m ()
+okListResult :: (ToJSON a, MonadIO m) => Key -> R.List a -> ActionT m ()
 okListResult key = json . R.fromList key
 
-safeParam ::(Parsable a, ScottyError e, Monad m) => LT.Text -> a -> ActionT e m a
-safeParam key def = param key `rescue` (\_ -> return def)
+safeQueryParam ::(Parsable a, MonadUnliftIO m) => LT.Text -> a -> ActionT m a
+safeQueryParam key def = queryParam key `rescue` (\(_ :: SomeException) -> return def)
+
+safeFormParam ::(Parsable a, MonadUnliftIO m) => LT.Text -> a -> ActionT m a
+safeFormParam key def = formParam key `rescue` (\(_ :: SomeException) -> return def)

@@ -86,7 +86,8 @@ import           Data.Int                             (Int64)
 import           Data.List                            (intercalate)
 import           Data.Maybe                           (listToMaybe)
 import           Data.Pool                            (Pool, defaultPoolConfig,
-                                                       newPool, withResource)
+                                                       newPool, setNumStripes,
+                                                       withResource)
 import           Data.String                          (IsString (..))
 import           Database.PostgreSQL.Simple           (Connection, Only (..),
                                                        SqlError (..), close,
@@ -127,9 +128,9 @@ getPrefix (TablePrefix x)  = x ++ "_"
 
 type PSQLPool = Pool Connection
 
-createPSQLPool :: ByteString -> Double -> Int -> IO PSQLPool
-createPSQLPool path idleTime =
-  newPool . defaultPoolConfig (connectPostgreSQL path) close idleTime
+createPSQLPool :: ByteString -> Maybe Int -> Double -> Int -> IO PSQLPool
+createPSQLPool path numStripes idleTime =
+  newPool . setNumStripes numStripes . defaultPoolConfig (connectPostgreSQL path) close idleTime
 
 newtype PSQL a = PSQL {unPSQL :: TablePrefix -> Connection -> IO a}
 

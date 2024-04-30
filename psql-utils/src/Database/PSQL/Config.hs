@@ -8,7 +8,8 @@ module Database.PSQL.Config
 
 import           Data.Aeson                 (FromJSON, parseJSON, withObject,
                                              (.!=), (.:), (.:?))
-import           Data.Pool                  (Pool, defaultPoolConfig, newPool)
+import           Data.Pool                  (Pool, defaultPoolConfig, newPool,
+                                             setNumStripes)
 import           Database.PostgreSQL.Simple (ConnectInfo (..), Connection,
                                              close, connect, defaultConnectInfo)
 import           GHC.Word                   (Word16)
@@ -21,6 +22,8 @@ data PSQL = PSQL
     , psqlPass             :: String
     , psqlPoolIdleTime     :: Double
     -- ^ Amount of time for which an unused resource is kept alive.
+    , psqlPoolNumStrips    :: Maybe Int
+    -- ^ The number of stripes (distinct sub-pools) to maintain.
     , psqlPoolMaxResources :: Int
     -- ^ Maximum number of resources to maintain per stripe.  The
     , psqlHaxlNumThreads   :: Int
@@ -36,12 +39,16 @@ instance FromJSON PSQL where
     psqlUser             <- o .:? "user"         .!= "postgres"
     psqlPass             <- o .:? "pass"         .!= ""
     psqlPoolIdleTime     <- o .:? "idleTime"     .!= 0.5
+    psqlPoolNumStrips    <- o .:? "numStripes"
     psqlPoolMaxResources <- o .:? "maxResources" .!= 1
     psqlHaxlNumThreads   <- o .:? "numThreads"   .!= 1
     return PSQL{..}
 
 genPSQLPool :: PSQL -> IO (Pool Connection)
-genPSQLPool conf = newPool $ defaultPoolConfig conn close idleTime maxResources
+genPSQLPool conf =
+  newPool
+    $ setNumStripes numStripes
+    $ defaultPoolConfig conn close idleTime maxResources
   where conn = connect defaultConnectInfo
                   { connectDatabase = dbName
                   , connectHost     = dbHost
@@ -58,3 +65,4 @@ genPSQLPool conf = newPool $ defaultPoolConfig conn close idleTime maxResources
 
         idleTime     = psqlPoolIdleTime     conf
         maxResources = psqlPoolMaxResources conf
+        numStripes   = psqlPoolNumStrips conf

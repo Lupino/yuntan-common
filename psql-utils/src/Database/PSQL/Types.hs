@@ -55,6 +55,7 @@ module Database.PSQL.Types
   , selectOnly_
   , selectOne
   , selectOneOnly
+  , selectIn
 
   , VersionList
   , mergeDatabase
@@ -78,7 +79,7 @@ module Database.PSQL.Types
   ) where
 
 
-import           Control.Monad                        (void)
+import           Control.Monad                        (void, when)
 import           Control.Monad.IO.Class               (MonadIO (..))
 import           Data.ByteString                      (ByteString)
 import           Data.Hashable                        (Hashable (..))
@@ -364,6 +365,14 @@ select tn cols partSql a from size o = PSQL $ \prefix conn ->  query conn (sql p
           , " OFFSET ", show from
           ]
 
+selectIn :: (ToField a, FromRow b) => TableName -> Columns -> Column -> [a] -> PSQL [b]
+selectIn tn cols col xs = select tn cols ids xs from size none
+  where keyLen = length xs
+        size = Size $ fromIntegral keyLen
+        from = From 0
+        vv = replicate keyLen "?"
+        ids = unColumn col ++ " IN (" ++ columnsToString vv ++ ")"
+
 selectOnly :: (ToRow a, FromRow (Only b)) => TableName -> Column -> String -> a -> From -> Size -> OrderBy -> PSQL [b]
 selectOnly tn col partSql a from size o =
   map fromOnly <$> select tn [col] partSql a from size o
@@ -425,10 +434,9 @@ mergeDatabase versionList = withTransaction $ do
 
 processAction :: Int64 -> Version a -> PSQL ()
 processAction version (ts, actions) =
-  if ts > version then do
-                  updateVersion ts
-                  mapM_ void actions
-                  else pure ()
+  when (ts > version) $ do
+    updateVersion ts
+    mapM_ void actions
 
 data OrderBy = Desc String | Asc String | None
   deriving (Generic, Eq)

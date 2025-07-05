@@ -22,10 +22,10 @@ import           Data.Aeson              (ToJSON)
 import           Data.Aeson.Key          (Key)
 import qualified Data.Aeson.Result       as R (Err, List, err, fromList, fromOk,
                                                ok)
-import qualified Data.Text.Lazy          as LT (Text)
+import           Data.Text               (Text)
 import           Network.HTTP.Types      (Status, status400, status404)
-import           Web.Scotty.Trans        (ActionT, Parsable, formParam, json,
-                                          queryParam, rescue, status)
+import           Web.Scotty.Trans        (ActionT, Parsable, catch, formParam,
+                                          json, queryParam, status)
 
 maybeNotFound :: (ToJSON a, MonadIO m) => String -> Maybe a -> ActionT m ()
 maybeNotFound _ (Just a)  = json a
@@ -54,8 +54,8 @@ errBadRequest = err status400
 okListResult :: (ToJSON a, MonadIO m) => Key -> R.List a -> ActionT m ()
 okListResult key = json . R.fromList key
 
-safeQueryParam ::(Parsable a, MonadUnliftIO m) => LT.Text -> a -> ActionT m a
-safeQueryParam key def = queryParam key `rescue` (\(_ :: SomeException) -> return def)
+safeQueryParam ::(Parsable a, MonadUnliftIO m) => Text -> a -> ActionT m a
+safeQueryParam key def = queryParam key `catch` (\(_ :: SomeException) -> return def)
 
-safeFormParam ::(Parsable a, MonadUnliftIO m) => LT.Text -> a -> ActionT m a
-safeFormParam key def = formParam key `rescue` (\(_ :: SomeException) -> return def)
+safeFormParam ::(Parsable a, MonadUnliftIO m) => Text -> a -> ActionT m a
+safeFormParam key def = formParam key `catch` (\(_ :: SomeException) -> return def)

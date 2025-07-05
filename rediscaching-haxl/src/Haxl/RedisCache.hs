@@ -1,11 +1,11 @@
-{-# LANGUAGE DeriveDataTypeable    #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE GADTs                 #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE RecordWildCards       #-}
-{-# LANGUAGE StandaloneDeriving    #-}
-{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE DeriveDataTypeable       #-}
+{-# LANGUAGE DisambiguateRecordFields #-}
+{-# LANGUAGE FlexibleInstances        #-}
+{-# LANGUAGE GADTs                    #-}
+{-# LANGUAGE MultiParamTypeClasses    #-}
+{-# LANGUAGE OverloadedStrings        #-}
+{-# LANGUAGE StandaloneDeriving       #-}
+{-# LANGUAGE TypeFamilies             #-}
 
 module Haxl.RedisCache
   ( cached
@@ -20,17 +20,19 @@ module Haxl.RedisCache
 
 import           Control.Concurrent.Async
 import           Control.Concurrent.QSem
-import qualified Control.Exception        (SomeException, bracket_, try)
+import qualified Control.Exception        as CE (SomeException, bracket_, try)
 import           Control.Monad            (void)
 import           Data.Aeson               (FromJSON, ToJSON, decodeStrict,
                                            encode)
 import           Data.ByteString          (ByteString)
 import qualified Data.ByteString          as B (concat)
 import           Data.ByteString.Lazy     (toStrict)
+import           Data.Either              (fromRight)
 import           Data.Hashable            (Hashable (..))
+import           Data.List                (groupBy)
 import           Data.Typeable            (Typeable)
 import           Database.Redis           (Connection, runRedis)
-import qualified Database.Redis           as R (del, get, set)
+import qualified Database.Redis           as R (del, get, mget, mset, set)
 import           Haxl.Core                hiding (fetchReq)
 
 newtype Conn = Conn Connection
@@ -45,10 +47,16 @@ genKey_ :: ByteString -> ByteString -> ByteString
 genKey_ pref k = B.concat [pref, ":", k]
 
 getData_ :: Connection -> ByteString -> IO (Maybe ByteString)
-getData_ conn k = runRedis conn $ either (const Nothing) id <$> R.get k
+getData_ conn k = runRedis conn $ fromRight Nothing <$> R.get k
+
+mGetData_ :: Connection -> [ByteString] -> IO [Maybe ByteString]
+mGetData_ conn ks = runRedis conn $ fromRight [] <$> R.mget ks
 
 setData_ :: Connection -> ByteString -> ByteString -> IO ()
 setData_ conn k = runRedis conn . void . R.set k
+
+mSetData_ :: Connection -> [(ByteString, ByteString)] -> IO ()
+mSetData_ conn = runRedis conn . void . R.mset
 
 delData_ :: Connection -> [ByteString] -> IO ()
 delData_ conn ks = runRedis conn . void $ R.del ks
@@ -81,6 +89,12 @@ instance DataSourceName RedisReq where
 instance DataSource u RedisReq where
   fetch = doFetch
 
+isSameType :: BlockedFetch RedisReq -> BlockedFetch RedisReq -> Bool
+isSameType (BlockedFetch (GetData {}) _) (BlockedFetch (GetData {}) _) = True
+isSameType (BlockedFetch (SetData {}) _) (BlockedFetch (SetData {}) _) = True
+isSameType (BlockedFetch (DelData {}) _) (BlockedFetch (DelData {}) _) = True
+isSameType _ _                                                         = False
+
 doFetch
   :: State RedisReq
   -> Flags
@@ -89,20 +103,49 @@ doFetch
 
 doFetch _state _flags _ = AsyncFetch $ \reqs inner -> do
   sem <- newQSem $ numThreads _state
-  asyncs <- mapM (fetchAsync sem (redisPrefix _state)) reqs
+  asyncs <- mapM (fetchAsync sem (redisPrefix _state)) (groupBy isSameType reqs)
   inner
   mapM_ wait asyncs
 
-fetchAsync :: QSem -> ByteString -> BlockedFetch RedisReq -> IO (Async ())
-fetchAsync sem pref req = async $
-  Control.Exception.bracket_ (waitQSem sem) (signalQSem sem) $ fetchSync pref req
+fetchAsync :: QSem -> ByteString -> [BlockedFetch RedisReq] -> IO (Async ())
+fetchAsync sem pref reqs = async $
+  CE.bracket_ (waitQSem sem) (signalQSem sem) $ fetchSync pref reqs
 
-fetchSync :: ByteString -> BlockedFetch RedisReq -> IO ()
-fetchSync pref (BlockedFetch req rvar) = do
-  e <- Control.Exception.try $ fetchReq pref req
+runVoid :: [ResultVar ()] -> IO () -> IO ()
+runVoid rvars io = do
+  e <- CE.try io
   case e of
-    Left ex -> putFailure rvar (ex :: Control.Exception.SomeException)
+    Left ex -> mapM_ (`putFailure` (ex :: CE.SomeException)) rvars
+    Right _ -> mapM_ (`putSuccess` ()) rvars
+
+fetchSync :: ByteString -> [BlockedFetch RedisReq] -> IO ()
+fetchSync _ [] = return ()
+fetchSync pref [BlockedFetch req rvar] = do
+  e <- CE.try $ fetchReq pref req
+  case e of
+    Left ex -> putFailure rvar (ex :: CE.SomeException)
     Right a -> putSuccess rvar a
+fetchSync pref reqs@((BlockedFetch (GetData (Conn conn) _) _):_) = do
+  e <- CE.try $ mGetData_ conn ids
+  case e of
+    Left ex -> mapM_ (`putFailure` (ex :: CE.SomeException)) rvars
+    Right a -> mapM_ (uncurry putSuccess) $ zip rvars a
+
+  where ids = [genKey_ pref i | BlockedFetch (GetData _ i) _ <- reqs]
+        rvars = [rvar | BlockedFetch (GetData _ _) rvar <- reqs]
+
+fetchSync pref reqs@((BlockedFetch (SetData (Conn conn) _ _) _):_) =
+  runVoid rvars $ mSetData_ conn kvs
+
+  where kvs = [(genKey_ pref i, v) | BlockedFetch (SetData _ i v) _ <- reqs]
+        rvars = [rvar | BlockedFetch (SetData {}) rvar <- reqs]
+
+fetchSync pref reqs@((BlockedFetch (DelData (Conn conn) _) _):_) =
+  runVoid rvars $ delData_ conn $ concat ks
+  where ks = [map (genKey_ pref) i | BlockedFetch (DelData _ i) _ <- reqs]
+        rvars = [rvar | BlockedFetch (DelData _ _) rvar <- reqs]
+
+fetchSync pref xs = mapM_ (\x -> fetchSync pref [x]) xs
 
 fetchReq :: ByteString -> RedisReq a -> IO a
 fetchReq pref (GetData (Conn conn) k)   = getData_ conn $ genKey_ pref k

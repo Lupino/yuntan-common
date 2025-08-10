@@ -18,6 +18,22 @@ library
   hs-source-dirs:      src
   exposed-modules:     Database.PSQL.Config
                      , Database.PSQL.Types
+                     , Database.PSQL.Gen
+                     , Database.PSQL.Version
+                     , Database.PSQL.Exc
+                     , Database.PSQL.Select
+                     , Database.PSQL.Util
+                     , Database.PSQL.Types.From
+                     , Database.PSQL.Types.Size
+                     , Database.PSQL.Types.TablePrefix
+                     , Database.PSQL.Class.HasPSQL
+                     , Database.PSQL.Class.HasOtherEnv
+                     , Database.PSQL.Types.PSQL
+                     , Database.PSQL.Types.SimpleEnv
+                     , Database.PSQL.Types.GroupBy
+                     , Database.PSQL.Types.OrderBy
+                     , Database.PSQL.Types.TableName
+                     , Database.PSQL.Types.Column
   build-depends:       base >= 4.7 && < 5
                      , resource-pool
                      , aeson

@@ -19,4 +19,4 @@ instance Hashable Size
 
 getSize :: Size -> String
 getSize (Size 0) = ""
-getSize s        = " LIMIT " ++ show s
+getSize (Size s) = " LIMIT " ++ show s

@@ -5,6 +5,7 @@
 module Database.PSQL.Select
   ( count
   , count_
+  , countInRaw
 
   , selectRaw
   , selectRaw_
@@ -29,6 +30,7 @@ module Database.PSQL.Select
 
   , selectInRaw
   , selectIn
+  , selectInOnly
   ) where
 
 
@@ -41,33 +43,29 @@ import           Database.PostgreSQL.Simple.ToRow   (ToRow (..))
 import           Database.PSQL.Gen                  (genSelect)
 import           Database.PSQL.Types.Column         (Column (..), Columns,
                                                      columnsToString)
-import           Database.PSQL.Types.From           (From (..))
 import           Database.PSQL.Types.GroupBy        (GroupBy, groupNone)
-import           Database.PSQL.Types.OrderBy        (OrderBy, orderNone)
+import           Database.PSQL.Types.Page           (Page, pageNone, pageOne)
 import           Database.PSQL.Types.PSQL           (PSQL, query, query_)
-import           Database.PSQL.Types.Size           (Size (..))
 import           Database.PSQL.Types.TableName      (TableName)
 import           Database.PSQL.Util                 (getOnlyDefault)
 
-selectRaw :: (ToRow a, FromRow b) => TableName -> Columns -> String -> a -> From -> Size -> GroupBy -> OrderBy -> PSQL [b]
-selectRaw tn cols partSql a from size g o = query sql a
-  where sql = genSelect tn cols partSql from size g o
+selectRaw :: (ToRow a, FromRow b) => TableName -> Columns -> String -> a -> Page -> GroupBy -> PSQL [b]
+selectRaw tn cols partSql a p g = query sql a
+  where sql = genSelect tn cols partSql p g
 
-selectRaw_ :: FromRow b => TableName -> Columns -> String -> From -> Size -> GroupBy -> OrderBy -> PSQL [b]
-selectRaw_ tn cols partSql from size g o = query_ sql
-  where sql = genSelect tn cols partSql from size g o
+selectRaw_ :: FromRow b => TableName -> Columns -> String -> Page -> GroupBy -> PSQL [b]
+selectRaw_ tn cols partSql p g = query_ sql
+  where sql = genSelect tn cols partSql p g
 
-selectAllRaw :: (ToRow a, FromRow b) => TableName -> Columns -> String -> a -> GroupBy -> OrderBy -> PSQL [b]
-selectAllRaw tn cols partSql a g o = selectRaw tn cols partSql a 0 0 g o
+selectAllRaw :: (ToRow a, FromRow b) => TableName -> Columns -> String -> a -> GroupBy -> PSQL [b]
+selectAllRaw tn cols partSql a = selectRaw tn cols partSql a pageNone
 
-selectAllRaw_ :: FromRow b => TableName -> Columns -> String -> GroupBy -> OrderBy -> PSQL [b]
-selectAllRaw_ tn cols partSql g o = selectRaw_ tn cols partSql 0 0 g o
+selectAllRaw_ :: FromRow b => TableName -> Columns -> String -> GroupBy -> PSQL [b]
+selectAllRaw_ tn cols partSql = selectRaw_ tn cols partSql pageNone
 
-selectInRaw :: (ToField a, ToRow r, FromRow b) => TableName -> Columns -> Column -> [a] -> String -> r -> GroupBy -> OrderBy -> PSQL [b]
-selectInRaw tn cols col xs partSql r = selectRaw tn cols ids ys from size
+selectInRaw :: (ToField a, ToRow r, FromRow b) => TableName -> Columns -> Column -> [a] -> String -> r -> Page -> GroupBy -> PSQL [b]
+selectInRaw tn cols col xs partSql r = selectRaw tn cols ids ys
   where keyLen = length xs
-        size = Size $ fromIntegral keyLen
-        from = From 0
         vv = replicate keyLen "?"
         ids = unColumn col ++ " IN (" ++ columnsToString vv ++ ")" ++ getAnd partSql
         ys = toRow xs ++ toRow r
@@ -76,46 +74,53 @@ selectInRaw tn cols col xs partSql r = selectRaw tn cols ids ys from size
         getAnd ""  = ""
         getAnd sql = " AND " ++ sql
 
-select :: (ToRow a, FromRow b) => TableName -> Columns -> String -> a -> From -> Size -> OrderBy -> PSQL [b]
-select tn cols partSql a from size =
-  selectRaw tn cols partSql a from size groupNone
+select :: (ToRow a, FromRow b) => TableName -> Columns -> String -> a -> Page -> PSQL [b]
+select tn cols partSql a p = selectRaw tn cols partSql a p groupNone
 
-select_ :: FromRow b => TableName -> Columns -> From -> Size -> OrderBy -> PSQL [b]
-select_ tn cols from size = selectRaw_ tn cols "" from size groupNone
+select_ :: FromRow b => TableName -> Columns -> Page -> PSQL [b]
+select_ tn cols p = selectRaw_ tn cols "" p groupNone
 
-selectAll :: (ToRow a, FromRow b) => TableName -> Columns -> String -> a -> OrderBy -> PSQL [b]
+selectAll :: (ToRow a, FromRow b) => TableName -> Columns -> String -> a -> PSQL [b]
 selectAll tn cols partSql a = selectAllRaw tn cols partSql a groupNone
 
-selectAll_ :: FromRow b => TableName -> Columns -> OrderBy -> PSQL [b]
+selectAll_ :: FromRow b => TableName -> Columns -> PSQL [b]
 selectAll_ tn cols = selectAllRaw_ tn cols "" groupNone
 
 selectIn :: (ToField a, FromRow b) => TableName -> Columns -> Column -> [a] -> PSQL [b]
-selectIn tn cols col xs = selectInRaw tn cols col xs "" () groupNone orderNone
+selectIn tn cols col xs = selectInRaw tn cols col xs "" () pageNone groupNone
 
-selectOnly :: (ToRow a, FromRow (Only b)) => TableName -> Column -> String -> a -> From -> Size -> OrderBy -> PSQL [b]
-selectOnly tn col partSql a from size o =
-  map fromOnly <$> select tn [col] partSql a from size o
+selectOnly :: (ToRow a, FromRow (Only b)) => TableName -> Column -> String -> a -> Page -> PSQL [b]
+selectOnly tn col partSql a p =
+  map fromOnly <$> select tn [col] partSql a p
 
-selectOnly_ :: FromRow (Only b) => TableName -> Column -> From -> Size -> OrderBy -> PSQL [b]
-selectOnly_ tn col from size o =
-  map fromOnly <$> select_ tn [col] from size o
+selectInOnly :: (ToField a, ToRow r, FromRow (Only b)) => TableName -> Columns -> Column -> [a] -> String -> r -> Page -> PSQL [b]
+selectInOnly tn cols col xs partSql a p =
+  map fromOnly <$> selectInRaw tn cols col xs partSql a p groupNone
 
-selectAllOnly :: (ToRow a, FromRow (Only b)) => TableName -> Column -> String -> a -> OrderBy -> PSQL [b]
-selectAllOnly tn col partSql a o =
-  map fromOnly <$> selectAll tn [col] partSql a o
+selectOnly_ :: FromRow (Only b) => TableName -> Column -> Page -> PSQL [b]
+selectOnly_ tn col p =
+  map fromOnly <$> select_ tn [col] p
 
-selectAllOnly_ :: FromRow (Only b) => TableName -> Column -> OrderBy -> PSQL [b]
-selectAllOnly_ tn col o = map fromOnly <$> selectAll_ tn [col] o
+selectAllOnly :: (ToRow a, FromRow (Only b)) => TableName -> Column -> String -> a -> PSQL [b]
+selectAllOnly tn col partSql a =
+  map fromOnly <$> selectAll tn [col] partSql a
+
+selectAllOnly_ :: FromRow (Only b) => TableName -> Column -> PSQL [b]
+selectAllOnly_ tn col = map fromOnly <$> selectAll_ tn [col]
 
 selectOne :: (ToRow a, FromRow b) => TableName -> Columns -> String -> a -> PSQL (Maybe b)
-selectOne tn cols partSql a = listToMaybe <$> select tn cols partSql a 0 1 orderNone
+selectOne tn cols partSql a = listToMaybe <$> select tn cols partSql a pageOne
 
 selectOneOnly :: (ToRow a, FromRow (Only b)) => TableName -> Column -> String -> a -> PSQL (Maybe b)
 selectOneOnly tn col partSql a =
   fmap fromOnly <$> selectOne tn [col] partSql a
 
 count :: ToRow a => TableName -> String -> a -> PSQL Int64
-count tn partSql a = getOnlyDefault 0 <$> selectAll tn ["count(*)"] partSql a orderNone
+count tn partSql a = getOnlyDefault 0 <$> selectAll tn ["count(*)"] partSql a
 
 count_ :: TableName -> PSQL Int64
-count_ tn = getOnlyDefault 0 <$> selectAll_ tn ["count(*)"] orderNone
+count_ tn = getOnlyDefault 0 <$> selectAll_ tn ["count(*)"]
+
+countInRaw :: (ToField a, ToRow r) => TableName -> Column -> [a] -> String -> r -> PSQL Int64
+countInRaw tn col xs partSql a =
+  getOnlyDefault 0 <$> selectInRaw tn ["count(*)"] col xs partSql a pageOne groupNone

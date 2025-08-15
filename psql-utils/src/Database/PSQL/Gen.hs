@@ -15,10 +15,8 @@ import           Data.String                     (IsString (..))
 import           Database.PostgreSQL.Simple      (Query)
 import           Database.PSQL.Types.Column      (Column (..), Columns,
                                                   columnsToString)
-import           Database.PSQL.Types.From        (From (..))
 import           Database.PSQL.Types.GroupBy     (GroupBy)
-import           Database.PSQL.Types.OrderBy     (OrderBy)
-import           Database.PSQL.Types.Size        (Size (..))
+import           Database.PSQL.Types.Page        (Page)
 import           Database.PSQL.Types.TableName   (IndexName, TableName,
                                                   getIndexName, getTableName)
 import           Database.PSQL.Types.TablePrefix (TablePrefix)
@@ -34,14 +32,12 @@ genWhere :: String -> String
 genWhere "" = ""
 genWhere ss = " WHERE " ++ ss
 
-genSelect :: TableName -> Columns -> String -> From -> Size -> GroupBy -> OrderBy -> TablePrefix -> Query
-genSelect tn cols partSql from size g o prefix =  fromString $ concat
+genSelect :: TableName -> Columns -> String -> Page -> GroupBy -> TablePrefix -> Query
+genSelect tn cols partSql p g prefix =  fromString $ concat
   [ "SELECT ", columnsToString cols, " FROM ", getTableName prefix tn
   , genWhere partSql
   , show g
-  , show o
-  , show size
-  , show from
+  , show p
   ]
 
 

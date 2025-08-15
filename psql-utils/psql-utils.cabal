@@ -23,6 +23,7 @@ library
                      , Database.PSQL.Exc
                      , Database.PSQL.Select
                      , Database.PSQL.Util
+                     , Database.PSQL.Types.Page
                      , Database.PSQL.Types.From
                      , Database.PSQL.Types.Size
                      , Database.PSQL.Types.TablePrefix

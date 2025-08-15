@@ -34,6 +34,7 @@ import           Database.PSQL.Types.Column           (Columns)
 import           Database.PSQL.Types.From             as X
 import           Database.PSQL.Types.GroupBy          as X
 import           Database.PSQL.Types.OrderBy          as X
+import           Database.PSQL.Types.Page             as X
 import           Database.PSQL.Types.PSQL             as X
 import           Database.PSQL.Types.SimpleEnv        as X
 import           Database.PSQL.Types.Size             as X

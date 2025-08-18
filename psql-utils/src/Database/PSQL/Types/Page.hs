@@ -5,13 +5,17 @@ module Database.PSQL.Types.Page
   ( Page (..)
   , pageAll
   , pageNone
+
   , page
+  , pageAsc
+  , pageDesc
+
   , pageOne
   ) where
 
 import           Data.Hashable               (Hashable (..))
 import           Database.PSQL.Types.From    (From)
-import           Database.PSQL.Types.OrderBy (OrderBy, orderNone)
+import           Database.PSQL.Types.OrderBy (OrderBy, asc, desc, orderNone)
 import           Database.PSQL.Types.Size    (Size)
 import           GHC.Generics                (Generic)
 
@@ -40,3 +44,9 @@ page pageFrom pageSize = Page { pageOrder = orderNone, .. }
 
 pageOne :: Page
 pageOne = page 0 1
+
+pageAsc :: From -> Size -> String -> Page
+pageAsc pageFrom pageSize f = Page { pageOrder = asc f, .. }
+
+pageDesc :: From -> Size -> String -> Page
+pageDesc pageFrom pageSize f = Page { pageOrder = desc f, .. }

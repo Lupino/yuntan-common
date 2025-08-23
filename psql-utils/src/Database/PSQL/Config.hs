@@ -2,7 +2,7 @@
 {-# LANGUAGE RecordWildCards   #-}
 
 module Database.PSQL.Config
-  ( PSQL (..)
+  ( PSQLConfig (..)
   , genPSQLPool
   ) where
 
@@ -14,7 +14,7 @@ import           Database.PostgreSQL.Simple (ConnectInfo (..), Connection,
                                              close, connect, defaultConnectInfo)
 import           GHC.Word                   (Word16)
 
-data PSQL = PSQL
+data PSQLConfig = PSQLConfig
     { psqlDBName           :: String
     , psqlHost             :: String
     , psqlPort             :: Word16
@@ -31,8 +31,8 @@ data PSQL = PSQL
     }
     deriving (Show)
 
-instance FromJSON PSQL where
-  parseJSON = withObject "PSQL" $ \o -> do
+instance FromJSON PSQLConfig where
+  parseJSON = withObject "PSQLConfig" $ \o -> do
     psqlDBName           <- o .:  "db"
     psqlHost             <- o .:? "host"         .!= "127.0.0.1"
     psqlPort             <- o .:? "port"         .!= 5432
@@ -42,9 +42,9 @@ instance FromJSON PSQL where
     psqlPoolNumStrips    <- o .:? "numStripes"
     psqlPoolMaxResources <- o .:? "maxResources" .!= 1
     psqlHaxlNumThreads   <- o .:? "numThreads"   .!= 1
-    return PSQL{..}
+    return PSQLConfig{..}
 
-genPSQLPool :: PSQL -> IO (Pool Connection)
+genPSQLPool :: PSQLConfig -> IO (Pool Connection)
 genPSQLPool conf =
   newPool
     $ setNumStripes numStripes

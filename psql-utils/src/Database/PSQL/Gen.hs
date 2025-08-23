@@ -9,6 +9,9 @@ module Database.PSQL.Gen
   , genInsertOrUpdate
   , genUpdate
   , genDelete
+
+  , genIn
+  , genAnd
   ) where
 
 import           Data.String                     (IsString (..))
@@ -28,9 +31,21 @@ constraintPrimaryKey prefix tn columns = Column . concat $
   , " PRIMARY KEY (", columnsToString columns, ")"
   ]
 
+
+genIn :: Column -> Int -> String
+genIn (Column col) len
+  | len > 1 = col ++ " IN (" ++ columnsToString vv ++ ")"
+  | otherwise = col ++ " = ?"
+  where vv = replicate len "?"
+
 genWhere :: String -> String
 genWhere "" = ""
 genWhere ss = " WHERE " ++ ss
+
+genAnd :: String -> String -> String
+genAnd "" ""     = ""
+genAnd sql0 ""   = sql0
+genAnd sql0 sql1 = sql0 ++ " AND " ++ sql1
 
 genSelect :: TableName -> Columns -> String -> Page -> GroupBy -> TablePrefix -> Query
 genSelect tn cols partSql p g prefix =  fromString $ concat

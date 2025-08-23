@@ -40,9 +40,8 @@ import           Database.PostgreSQL.Simple         (Only (..))
 import           Database.PostgreSQL.Simple.FromRow (FromRow (..))
 import           Database.PostgreSQL.Simple.ToField (ToField (..))
 import           Database.PostgreSQL.Simple.ToRow   (ToRow (..))
-import           Database.PSQL.Gen                  (genSelect)
-import           Database.PSQL.Types.Column         (Column (..), Columns,
-                                                     columnsToString)
+import           Database.PSQL.Gen                  (genAnd, genIn, genSelect)
+import           Database.PSQL.Types.Column         (Column (..), Columns)
 import           Database.PSQL.Types.GroupBy        (GroupBy, groupNone)
 import           Database.PSQL.Types.Page           (Page, pageNone, pageOne)
 import           Database.PSQL.Types.PSQL           (PSQL, query, query_)
@@ -65,14 +64,8 @@ selectAllRaw_ tn cols partSql = selectRaw_ tn cols partSql pageNone
 
 selectInRaw :: (ToField a, ToRow r, FromRow b) => TableName -> Columns -> Column -> [a] -> String -> r -> Page -> GroupBy -> PSQL [b]
 selectInRaw tn cols col xs partSql r = selectRaw tn cols ids ys
-  where keyLen = length xs
-        vv = replicate keyLen "?"
-        ids = unColumn col ++ " IN (" ++ columnsToString vv ++ ")" ++ getAnd partSql
+  where ids = genIn col (length xs) `genAnd` partSql
         ys = toRow xs ++ toRow r
-
-        getAnd :: String -> String
-        getAnd ""  = ""
-        getAnd sql = " AND " ++ sql
 
 select :: (ToRow a, FromRow b) => TableName -> Columns -> String -> a -> Page -> PSQL [b]
 select tn cols partSql a p = selectRaw tn cols partSql a p groupNone

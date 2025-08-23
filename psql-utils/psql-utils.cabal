@@ -17,6 +17,7 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Database.PSQL.Config
+                     , Database.PSQL
                      , Database.PSQL.Types
                      , Database.PSQL.Gen
                      , Database.PSQL.Version

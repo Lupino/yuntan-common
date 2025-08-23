@@ -11,6 +11,7 @@ import           GHC.Generics  (Generic)
 
 newtype Size = Size { unSize :: Int64 }
   deriving (Generic, Eq, Num, Integral, Real, Ord, Enum)
+
 instance Show Size where
   show = getSize
 

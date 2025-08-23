@@ -1,3 +1,6 @@
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Database.PSQL.Types.Column
   ( Column (..)
 
@@ -6,14 +9,18 @@ module Database.PSQL.Types.Column
   ) where
 
 
-import           Data.List   (intercalate)
-import           Data.String (IsString (..))
+import           Data.Hashable (Hashable (..))
+import           Data.List     (intercalate)
+import           Data.String   (IsString (..))
+import           GHC.Generics  (Generic)
 
 newtype Column = Column { unColumn :: String }
-  deriving (Show)
+  deriving (Generic, Eq, Ord, Show)
 
 instance IsString Column where
   fromString = Column
+
+instance Hashable Column
 
 type Columns = [Column]
 

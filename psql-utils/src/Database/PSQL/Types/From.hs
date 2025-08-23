@@ -11,6 +11,7 @@ import           GHC.Generics  (Generic)
 
 newtype From = From { unFrom :: Int64 }
   deriving (Generic, Eq, Num, Integral, Real, Ord, Enum)
+
 instance Show From where
   show = getFrom
 

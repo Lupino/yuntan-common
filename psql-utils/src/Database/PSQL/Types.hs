@@ -5,6 +5,7 @@ module Database.PSQL.Types
 
   , constraintPrimaryKey
   , Columns
+  , Column (..)
 
   -- re-exports
   , FromRow (..)
@@ -34,7 +35,7 @@ import           Database.PSQL.Class.HasPSQL          as X
 import           Database.PSQL.Exc                    as X
 import           Database.PSQL.Gen                    (constraintPrimaryKey)
 import           Database.PSQL.Select                 as X
-import           Database.PSQL.Types.Column           (Columns)
+import           Database.PSQL.Types.Column           (Column (..), Columns)
 import           Database.PSQL.Types.From             as X
 import           Database.PSQL.Types.GroupBy          as X
 import           Database.PSQL.Types.OrderBy          as X

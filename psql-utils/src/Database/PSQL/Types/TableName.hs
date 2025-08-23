@@ -1,3 +1,6 @@
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Database.PSQL.Types.TableName
   ( TableName
   , as
@@ -9,15 +12,19 @@ module Database.PSQL.Types.TableName
   , getIndexName
   ) where
 
+import           Data.Hashable                   (Hashable (..))
 import           Data.String                     (IsString (..))
 import           Database.PSQL.Types.TablePrefix (TablePrefix, getPrefix)
+import           GHC.Generics                    (Generic)
 
 data TableName =
   TableName String
   | TableNameAs TableName String
   | TableNameJoin TableName TableName
   | TableNameLeftJoin TableName TableName String
-  deriving (Show)
+  deriving (Generic, Show, Eq, Ord)
+
+instance Hashable TableName
 
 instance IsString TableName where
   fromString = TableName

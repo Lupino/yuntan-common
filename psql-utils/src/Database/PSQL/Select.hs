@@ -64,8 +64,9 @@ selectAllRaw_ tn cols partSql = selectRaw_ tn cols partSql pageNone
 
 selectInRaw :: (ToField a, ToRow r, FromRow b) => TableName -> Columns -> Column -> [a] -> String -> r -> Page -> GroupBy -> PSQL [b]
 selectInRaw tn cols col xs partSql r = selectRaw tn cols ids ys
-  where ids = genIn col (length xs) `genAnd` partSql
-        ys = toRow xs ++ toRow r
+  where (inSql, ixs) = genIn col xs
+        ids = inSql `genAnd` partSql
+        ys = ixs ++ toRow r
 
 select :: (ToRow a, FromRow b) => TableName -> Columns -> String -> a -> Page -> PSQL [b]
 select tn cols partSql a p = selectRaw tn cols partSql a p groupNone

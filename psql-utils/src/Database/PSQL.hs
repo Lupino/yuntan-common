@@ -3,7 +3,6 @@ module Database.PSQL
 
   , Connection
 
-  , constraintPrimaryKey
   , Columns
   , Column (..)
 
@@ -32,7 +31,7 @@ import           Database.PSQL.Class.HasOtherEnv      as X
 import           Database.PSQL.Class.HasPSQL          as X
 import           Database.PSQL.Config                 as X
 import           Database.PSQL.Exc                    as X
-import           Database.PSQL.Gen                    (constraintPrimaryKey)
+import           Database.PSQL.Gen                    as X
 import           Database.PSQL.Select                 as X
 import           Database.PSQL.Types                  ()
 import           Database.PSQL.Types.Column           (Column (..), Columns)

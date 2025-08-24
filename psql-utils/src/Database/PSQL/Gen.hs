@@ -69,6 +69,7 @@ genBetweenBy f (Column col) s e
 genAnd :: String -> String -> String
 genAnd "" ""     = ""
 genAnd sql0 ""   = sql0
+genAnd "" sql1   = sql1
 genAnd sql0 sql1 = sql0 ++ " AND " ++ sql1
 
 genWhere :: String -> String

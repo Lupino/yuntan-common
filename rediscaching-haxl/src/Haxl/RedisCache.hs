@@ -24,6 +24,9 @@ module Haxl.RedisCache
   , hexists
   , hgetall
 
+  , hgetallKV
+  , hgetallV
+
   , genKey
   ) where
 
@@ -31,14 +34,18 @@ import           Control.Concurrent.Async
 import           Control.Concurrent.QSem
 import qualified Control.Exception        as CE (SomeException, bracket_, try)
 import           Control.Monad            (void)
-import           Data.Aeson               (FromJSON, ToJSON, decodeStrict,
-                                           encode)
+import           Data.Aeson               (FromJSON, ToJSON, Value (Null),
+                                           decodeStrict, encode, object, (.=))
+import           Data.Aeson.Helper        (union)
+import qualified Data.Aeson.Key           as Key (fromText)
 import           Data.ByteString          (ByteString)
 import qualified Data.ByteString          as B (concat)
 import           Data.ByteString.Lazy     (toStrict)
 import           Data.Either              (fromRight)
 import           Data.Hashable            (Hashable (..))
 import           Data.List                (groupBy)
+import           Data.Maybe               (fromMaybe, mapMaybe)
+import           Data.Text.Encoding       (decodeUtf8)
 import           Data.Typeable            (Typeable)
 import           Database.Redis           (Connection, runRedis)
 import qualified Database.Redis           as R (del, get, hdel, hexists, hget,
@@ -341,6 +348,18 @@ hgetall redis k = do
   case h of
     Nothing   -> return []
     Just conn -> hgetallData conn k
+
+hgetallKV :: (u -> Maybe Connection) -> ByteString -> GenHaxl u w Value
+hgetallKV redis k = do
+  foldl union Null . map toValue <$> hgetall redis k
+
+  where toValue :: (ByteString, ByteString) -> Value
+        toValue (f, v) = object
+          [ Key.fromText (decodeUtf8 f) .= fromMaybe Null (decodeStrict v)
+          ]
+
+hgetallV :: FromJSON a => (u -> Maybe Connection) -> ByteString -> GenHaxl u w [a]
+hgetallV redis k = mapMaybe (decodeStrict . snd) <$> hgetall redis k
 
 hexists :: (u -> Maybe Connection) -> ByteString -> ByteString -> GenHaxl u w Bool
 hexists redis k f = do

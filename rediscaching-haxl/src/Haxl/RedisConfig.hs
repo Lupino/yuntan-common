@@ -31,8 +31,6 @@ data RedisConfig = RedisConfig
   --   your redis.conf file is non-zero, it should be larger than
   --   'redisMaxIdleTime'.
   , redisEnable         :: Bool
-  , redisHaxlNumThreads :: Int
-  -- numThreads of fetch async for haxl
   }
   deriving (Show)
 
@@ -45,7 +43,6 @@ instance FromJSON RedisConfig where
     redisEnable         <- o .:? "enable"         .!= False
     redisMaxConnections <- o .:? "maxConnections" .!= 50
     redisMaxIdleTime    <- o .:? "idleTime"       .!= 30
-    redisHaxlNumThreads <- o .:? "numThreads"     .!= 1
     return RedisConfig{..}
 
 defaultRedisConfig :: RedisConfig
@@ -56,7 +53,6 @@ defaultRedisConfig = RedisConfig
   , redisDB             = 0
   , redisMaxConnections = 50
   , redisMaxIdleTime    = 30
-  , redisHaxlNumThreads = 1
   , redisEnable         = False
   }
 

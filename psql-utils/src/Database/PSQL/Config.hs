@@ -8,8 +8,7 @@ module Database.PSQL.Config
 
 import           Data.Aeson                 (FromJSON, parseJSON, withObject,
                                              (.!=), (.:), (.:?))
-import           Data.Pool                  (Pool, defaultPoolConfig, newPool,
-                                             setNumStripes)
+import           Data.Pool                  (Pool, defaultPoolConfig, newPool)
 import           Database.PostgreSQL.Simple (ConnectInfo (..), Connection,
                                              close, connect, defaultConnectInfo)
 import           GHC.Word                   (Word16)
@@ -22,12 +21,12 @@ data PSQLConfig = PSQLConfig
     , psqlPass             :: String
     , psqlPoolIdleTime     :: Double
     -- ^ Amount of time for which an unused resource is kept alive.
-    , psqlPoolNumStrips    :: Maybe Int
-    -- ^ The number of stripes (distinct sub-pools) to maintain.
     , psqlPoolMaxResources :: Int
-    -- ^ Maximum number of resources to maintain per stripe.  The
-    , psqlHaxlNumThreads   :: Int
-    -- numThreads of fetch async for haxl
+    -- ^ The maximum number of resources to keep open across all stripes.
+    -- The smallest acceptable value is 1 per stripe.
+
+    -- Note: if the number of stripes does not divide the number of resources,
+    -- some of the stripes will have 1 more resource available than the others.
     }
     deriving (Show)
 
@@ -39,16 +38,12 @@ instance FromJSON PSQLConfig where
     psqlUser             <- o .:? "user"         .!= "postgres"
     psqlPass             <- o .:? "pass"         .!= ""
     psqlPoolIdleTime     <- o .:? "idleTime"     .!= 0.5
-    psqlPoolNumStrips    <- o .:? "numStripes"
     psqlPoolMaxResources <- o .:? "maxResources" .!= 1
-    psqlHaxlNumThreads   <- o .:? "numThreads"   .!= 1
     return PSQLConfig{..}
 
 genPSQLPool :: PSQLConfig -> IO (Pool Connection)
 genPSQLPool conf =
-  newPool
-    $ setNumStripes numStripes
-    $ defaultPoolConfig conn close idleTime maxResources
+  newPool $ defaultPoolConfig conn close idleTime maxResources
   where conn = connect defaultConnectInfo
                   { connectDatabase = dbName
                   , connectHost     = dbHost
@@ -65,4 +60,3 @@ genPSQLPool conf =
 
         idleTime     = psqlPoolIdleTime     conf
         maxResources = psqlPoolMaxResources conf
-        numStripes   = psqlPoolNumStrips conf

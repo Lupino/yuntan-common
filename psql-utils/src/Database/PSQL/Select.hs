@@ -6,6 +6,7 @@ module Database.PSQL.Select
   ( count
   , count_
   , countInRaw
+  , countCol
 
   , selectRaw
   , selectRaw_
@@ -108,6 +109,10 @@ selectOne tn cols partSql a = listToMaybe <$> select tn cols partSql a pageOne
 selectOneOnly :: (ToRow a, FromRow (Only b)) => TableName -> Column -> String -> a -> PSQL (Maybe b)
 selectOneOnly tn col partSql a =
   fmap fromOnly <$> selectOne tn [col] partSql a
+
+countCol :: ToRow a => TableName -> Column -> String -> a -> PSQL Int64
+countCol tn (Column c) partSql a = getOnlyDefault 0 <$> selectAll tn [col] partSql a
+  where col = Column $ "count(" ++ c ++")"
 
 count :: ToRow a => TableName -> String -> a -> PSQL Int64
 count tn partSql a = getOnlyDefault 0 <$> selectAll tn ["count(*)"] partSql a

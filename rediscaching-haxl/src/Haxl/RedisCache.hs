@@ -17,6 +17,7 @@ module Haxl.RedisCache
   , get'
   , set
   , del
+  , expire
 
   , hget
   , hget'
@@ -53,9 +54,9 @@ import           Data.Maybe               (fromMaybe, mapMaybe)
 import           Data.Text.Encoding       (decodeUtf8)
 import           Data.Typeable            (Typeable)
 import           Database.Redis           (Connection, runRedis)
-import qualified Database.Redis           as R (del, get, hdel, hexists, hget,
-                                                hgetall, hmget, hmset, hset,
-                                                mget, mset, set)
+import qualified Database.Redis           as R (del, expire, get, hdel, hexists,
+                                                hget, hgetall, hmget, hmset,
+                                                hset, mget, mset, set)
 import           Haxl.Core                hiding (fetchReq)
 
 newtype Conn = Conn Connection
@@ -82,7 +83,10 @@ mSetData_ :: Connection -> [(ByteString, ByteString)] -> IO ()
 mSetData_ conn = runRedis conn . void . R.mset
 
 delData_ :: Connection -> [ByteString] -> IO ()
-delData_ conn ks = runRedis conn . void $ R.del ks
+delData_ conn = runRedis conn . void . R.del
+
+expireData_ :: Connection -> ByteString -> Integer -> IO ()
+expireData_ conn k = runRedis conn . void . R.expire k
 
 hgetData_ :: Connection -> ByteString -> ByteString -> IO (Maybe ByteString)
 hgetData_ conn k f = runRedis conn $ fromRight Nothing <$> R.hget k f
@@ -111,6 +115,7 @@ data RedisReq a where
   GetData :: Conn -> ByteString -> RedisReq (Maybe ByteString)
   SetData :: Conn -> ByteString -> ByteString -> RedisReq ()
   DelData :: Conn -> [ByteString] -> RedisReq ()
+  ExpireData :: Conn -> ByteString -> Integer -> RedisReq ()
   HGetData :: Conn -> ByteString -> ByteString -> RedisReq (Maybe ByteString)
   HSetData :: Conn -> ByteString -> ByteString -> ByteString -> RedisReq ()
   HDelData :: Conn -> ByteString -> [ByteString] -> RedisReq ()
@@ -126,14 +131,15 @@ instance Hashable (RedisReq a) where
   hashWithSalt s (GetData _ k)       = hashWithSalt s (1::Int, k)
   hashWithSalt s (SetData _ k v)     = hashWithSalt s (2::Int, k, v)
   hashWithSalt s (DelData _ ks)      = hashWithSalt s (3::Int, ks)
-  hashWithSalt s (HGetData _ k f)    = hashWithSalt s (4::Int, k, f)
-  hashWithSalt s (HSetData _ k f v)  = hashWithSalt s (5::Int, k, f, v)
-  hashWithSalt s (HDelData _ k fs)   = hashWithSalt s (6::Int, k, fs)
+  hashWithSalt s (ExpireData _ k t)  = hashWithSalt s (4::Int, k, t)
+  hashWithSalt s (HGetData _ k f)    = hashWithSalt s (5::Int, k, f)
+  hashWithSalt s (HSetData _ k f v)  = hashWithSalt s (6::Int, k, f, v)
+  hashWithSalt s (HDelData _ k fs)   = hashWithSalt s (7::Int, k, fs)
 
-  hashWithSalt s (HGetAllData _ k)   = hashWithSalt s (7::Int, k)
-  hashWithSalt s (HExistsData _ k f) = hashWithSalt s (8::Int, k, f)
+  hashWithSalt s (HGetAllData _ k)   = hashWithSalt s (8::Int, k)
+  hashWithSalt s (HExistsData _ k f) = hashWithSalt s (9::Int, k, f)
 
-  hashWithSalt s (GenKey k)          = hashWithSalt s (9::Int, k)
+  hashWithSalt s (GenKey k)          = hashWithSalt s (10::Int, k)
 
 deriving instance Show (RedisReq a)
 instance ShowP RedisReq where showp = show
@@ -232,6 +238,7 @@ fetchReq :: ByteString -> RedisReq a -> IO a
 fetchReq pref (GetData (Conn conn) k)       = getData_ conn $ genKey_ pref k
 fetchReq pref (SetData (Conn conn) k v)     = setData_ conn (genKey_ pref k) v
 fetchReq pref (DelData (Conn conn) ks)      = delData_ conn $ map (genKey_ pref) ks
+fetchReq pref (ExpireData (Conn conn) k t)  = expireData_ conn (genKey_ pref k) t
 fetchReq pref (HGetData (Conn conn) k f)    = hgetData_ conn (genKey_ pref k) f
 fetchReq pref (HSetData (Conn conn) k f v)  = hsetData_ conn (genKey_ pref k) f v
 fetchReq pref (HDelData (Conn conn) k fs)   = hdelData_ conn (genKey_ pref k) fs
@@ -256,6 +263,9 @@ setData conn k = uncachedRequest . SetData (Conn conn) k . toStrict . encode
 
 delData :: Connection -> [ByteString] -> GenHaxl u w ()
 delData conn = uncachedRequest . DelData (Conn conn)
+
+expireData :: Connection -> ByteString -> Integer -> GenHaxl u w ()
+expireData conn k = uncachedRequest . ExpireData (Conn conn) k
 
 hgetData :: FromJSON v => Connection -> ByteString -> ByteString -> GenHaxl u w (Maybe v)
 hgetData conn k f = parseJSON <$> dataFetch (HGetData (Conn conn) k f)
@@ -316,6 +326,9 @@ useRedis redis def = useRedis_ redis (pure def)
 
 del :: (u -> Maybe Connection) -> [ByteString] -> GenHaxl u w ()
 del redis ks = useRedis redis () (`delData` ks)
+
+expire :: (u -> Maybe Connection) -> ByteString -> Integer -> GenHaxl u w ()
+expire redis k t = useRedis redis () $ \conn -> expireData conn k t
 
 get :: FromJSON v => (u -> Maybe Connection) -> ByteString -> GenHaxl u w (Maybe v)
 get redis k = useRedis redis Nothing (`getData` k)

@@ -91,9 +91,9 @@ selectOnly :: (ToRow a, FromRow (Only b)) => TableName -> Column -> String -> a 
 selectOnly tn col partSql a p =
   map fromOnly <$> select tn [col] partSql a p
 
-selectInOnly :: (ToField a, ToRow r, FromRow (Only b)) => TableName -> Columns -> Column -> [a] -> String -> r -> Page -> PSQL [b]
-selectInOnly tn cols col xs partSql a p =
-  map fromOnly <$> selectInRaw tn cols col xs partSql a p groupNone
+selectInOnly :: (ToField a, ToRow r, FromRow (Only b)) => TableName -> Column -> Column -> [a] -> String -> r -> Page -> PSQL [b]
+selectInOnly tn outCol col xs partSql a p =
+  map fromOnly <$> selectInRaw tn [outCol] col xs partSql a p groupNone
 
 selectOnly_ :: FromRow (Only b) => TableName -> Column -> Page -> PSQL [b]
 selectOnly_ tn col p =

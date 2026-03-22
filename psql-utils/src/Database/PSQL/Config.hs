@@ -58,5 +58,5 @@ genPSQLPool conf =
         dbUser       = psqlUser   conf
         dbPass       = psqlPass   conf
 
-        idleTime     = psqlPoolIdleTime     conf
-        maxResources = psqlPoolMaxResources conf
+        idleTime     = max 0 (psqlPoolIdleTime conf)
+        maxResources = max 1 (psqlPoolMaxResources conf)

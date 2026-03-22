@@ -32,8 +32,15 @@ import           Database.PSQL.Class.HasPSQL        (HasPSQL (..), PSQLPool)
 import           Database.PSQL.Types.TablePrefix    (TablePrefix)
 
 createPSQLPool :: ByteString -> Maybe Int -> Double -> Int -> IO PSQLPool
-createPSQLPool path numStripes idleTime =
-  newPool . setNumStripes numStripes . defaultPoolConfig (connectPostgreSQL path) close idleTime
+createPSQLPool path numStripes idleTime maxResources =
+  newPool $ setNumStripes normalizedStripes $
+    defaultPoolConfig (connectPostgreSQL path) close normalizedIdleTime normalizedMaxResources
+  where
+    normalizedIdleTime = max 0 idleTime
+    normalizedMaxResources = max 1 maxResources
+    normalizedStripes = case numStripes of
+      Just n | n > 0 -> Just n
+      _              -> Nothing
 
 newtype PSQL a = PSQL {unPSQL :: TablePrefix -> Connection -> IO a}
 

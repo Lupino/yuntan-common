@@ -55,6 +55,15 @@ instance IsString IndexName where
   fromString = IndexName
 
 getIndexName :: TablePrefix -> TableName -> IndexName -> String
-getIndexName prefix (TableName tn) (IndexName name) =
-  concat [ "\"", getPrefix prefix, tn , "_", name, "\"" ]
-getIndexName _ _ _ = error "no implement"
+getIndexName prefix tn (IndexName name) =
+  case getBaseTableName tn of
+    Just baseName ->
+      concat [ "\"", getPrefix prefix, baseName , "_", name, "\"" ]
+    Nothing ->
+      error "getIndexName: joined table names are not supported"
+
+getBaseTableName :: TableName -> Maybe String
+getBaseTableName (TableName name)       = Just name
+getBaseTableName (TableNameAs name _)   = getBaseTableName name
+getBaseTableName (TableNameJoin _ _)    = Nothing
+getBaseTableName (TableNameLeftJoin {}) = Nothing

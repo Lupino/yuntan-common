@@ -18,6 +18,7 @@ module Database.PSQL.Gen
   , genAnd
   ) where
 
+import           Data.Char                          (isSpace)
 import           Data.String                        (IsString (..))
 import           Database.PostgreSQL.Simple         (Only (..), Query)
 import           Database.PostgreSQL.Simple.ToField (Action (..), ToField (..))
@@ -31,14 +32,16 @@ import           Database.PSQL.Types.TableName      (IndexName, TableName,
 import           Database.PSQL.Types.TablePrefix    (TablePrefix)
 
 constraintPrimaryKey :: TablePrefix -> TableName -> Columns -> Column
-constraintPrimaryKey prefix tn columns = Column . concat $
-  [ "CONSTRAINT "
-  , getIndexName prefix tn "pkey"
-  , " PRIMARY KEY (", columnsToString columns, ")"
-  ]
+constraintPrimaryKey prefix tn columns
+  | null columns = error "constraintPrimaryKey: empty key columns"
+  | otherwise = Column . concat $
+      [ "CONSTRAINT "
+      , getIndexName prefix tn "pkey"
+      , " PRIMARY KEY (", columnsToString columns, ")"
+      ]
 
 genIn :: ToField a => Column -> [a] -> (String, [Action])
-genIn _ []            = ("", [])
+genIn _ []            = ("FALSE", [])
 genIn (Column col) xs
   | len > 1 = (col ++ " IN (" ++ columnsToString vv ++ ")", toRow xs)
   | otherwise = (col ++ " = ?", toRow xs)
@@ -62,52 +65,69 @@ genEq (Column col) a = (col ++ " = ?", toRow (Only a))
 genBetweenBy :: ToField a => (a -> Bool) -> Column -> a -> a -> (String, [Action])
 genBetweenBy f (Column col) s e
   | f s && f e = (col ++ " BETWEEN ? AND ?", toRow (s, e))
-  | f s = (col ++ " > ?", toRow (Only s))
-  | f e = (col ++ " < ?", toRow (Only e))
+  | f s = (col ++ " >= ?", toRow (Only s))
+  | f e = (col ++ " <= ?", toRow (Only e))
   | otherwise = ("", [])
 
 genAnd :: String -> String -> String
-genAnd "" ""     = ""
-genAnd sql0 ""   = sql0
-genAnd "" sql1   = sql1
-genAnd sql0 sql1 = sql0 ++ " AND " ++ sql1
+genAnd sql0 sql1
+  | isBlank sql0 && isBlank sql1 = ""
+  | isBlank sql1 = sql0
+  | isBlank sql0 = sql1
+genAnd sql0 sql1 = "(" ++ sql0 ++ ") AND (" ++ sql1 ++ ")"
 
 genWhere :: String -> String
-genWhere "" = ""
+genWhere ss | isBlank ss = ""
 genWhere ss = " WHERE " ++ ss
 
+isBlank :: String -> Bool
+isBlank = all isSpace
+
 genSelect :: TableName -> Columns -> String -> Page -> GroupBy -> TablePrefix -> Query
-genSelect tn cols partSql p g prefix =  fromString $ concat
-  [ "SELECT ", columnsToString cols, " FROM ", getTableName prefix tn
-  , genWhere partSql
-  , show g
-  , show p
-  ]
+genSelect tn cols partSql p g prefix
+  | null cols = error "genSelect: empty select columns"
+  | otherwise = fromString $ concat
+      [ "SELECT ", columnsToString cols, " FROM ", getTableName prefix tn
+      , genWhere partSql
+      , show g
+      , show p
+      ]
 
 
 genCreateTable :: TableName -> Columns -> TablePrefix -> Query
-genCreateTable tn cols prefix = fromString $ concat
-  [ "CREATE TABLE IF NOT EXISTS ", getTableName prefix tn, " ("
-  , columnsToString cols
-  , ")"
-  ]
+genCreateTable tn cols prefix
+  | null cols = error "genCreateTable: empty table columns"
+  | otherwise = fromString $ concat
+      [ "CREATE TABLE IF NOT EXISTS ", getTableName prefix tn, " ("
+      , columnsToString cols
+      , ")"
+      ]
 
 genCreateIndex :: Bool -> TableName -> IndexName -> Columns -> TablePrefix -> Query
-genCreateIndex uniq tn idxN cols prefix = fromString $ concat
-  [ "CREATE ", uniqWord, "INDEX IF NOT EXISTS ", getIndexName prefix tn idxN
-  , " ON " , getTableName prefix tn, "(", columnsToString cols, ")"
-  ]
+genCreateIndex uniq tn idxN cols prefix
+  | null cols = error "genCreateIndex: empty index columns"
+  | otherwise = fromString $ concat
+      [ "CREATE ", uniqWord, "INDEX IF NOT EXISTS ", getIndexName prefix tn idxN
+      , " ON " , getTableName prefix tn, "(", columnsToString cols, ")"
+      ]
 
   where uniqWord = if uniq then "UNIQUE " else ""
 
 genInsertBase :: TableName -> Columns -> String -> TablePrefix -> Query
-genInsertBase tn cols extSql prefix = fromString $ concat
-  [ "INSERT INTO ", getTableName prefix tn
-  , " (", columnsToString cols, ")"
-  , " VALUES"
-  , " (", columnsToString v, ")"
-  , extSql
-  ]
+genInsertBase tn cols extSql prefix = fromString $
+  case cols of
+    [] -> concat
+      [ "INSERT INTO ", getTableName prefix tn
+      , " DEFAULT VALUES"
+      , extSql
+      ]
+    _  -> concat
+      [ "INSERT INTO ", getTableName prefix tn
+      , " (", columnsToString cols, ")"
+      , " VALUES"
+      , " (", columnsToString v, ")"
+      , extSql
+      ]
   where v = replicate (length cols) "?"
 
 
@@ -127,17 +147,21 @@ genInsertOrUpdate tn uniqCols valCols otherCols = genInsertBase tn cols extSql
         genDoSql [] = " DO NOTHING"
         genDoSql xs = " DO UPDATE SET " ++ columnsToString (map genSetCol xs)
 
-        extSql = concat
-          [ " ON CONFLICT (", columnsToString uniqCols, ")"
-          , genDoSql valCols
-          ]
+        extSql
+          | null uniqCols = ""
+          | otherwise = concat
+              [ " ON CONFLICT (", columnsToString uniqCols, ")"
+              , genDoSql valCols
+              ]
 
 genUpdate :: TableName -> Columns -> String -> TablePrefix -> Query
-genUpdate tn cols partSql prefix = fromString $ concat
-  [ "UPDATE ", getTableName prefix tn
-  , " SET ", columnsToString setCols
-  , genWhere partSql
-  ]
+genUpdate tn cols partSql prefix
+  | null cols = error "genUpdate: empty update columns"
+  | otherwise = fromString $ concat
+      [ "UPDATE ", getTableName prefix tn
+      , " SET ", columnsToString setCols
+      , genWhere partSql
+      ]
   where setCols = map genSetCol cols
 
         genSetCol :: Column -> Column

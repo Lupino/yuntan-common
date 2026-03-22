@@ -36,6 +36,7 @@ module Database.PSQL.Select
 
 
 import           Data.Int                           (Int64)
+import           Data.Char                          (isSpace)
 import           Data.Maybe                         (listToMaybe)
 import           Database.PostgreSQL.Simple         (Only (..))
 import           Database.PostgreSQL.Simple.FromRow (FromRow (..))
@@ -67,7 +68,9 @@ selectInRaw :: (ToField a, ToRow r, FromRow b) => TableName -> Columns -> Column
 selectInRaw tn cols col xs partSql r = selectRaw tn cols ids ys
   where (inSql, ixs) = genIn col xs
         ids = inSql `genAnd` partSql
-        ys = ixs ++ toRow r
+        ys
+          | all isSpace partSql = ixs
+          | otherwise = ixs ++ toRow r
 
 select :: (ToRow a, FromRow b) => TableName -> Columns -> String -> a -> Page -> PSQL [b]
 select tn cols partSql a p = selectRaw tn cols partSql a p groupNone

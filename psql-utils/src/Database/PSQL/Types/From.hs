@@ -19,5 +19,5 @@ instance Hashable From
 
 
 getFrom :: From -> String
-getFrom (From 0) = ""
+getFrom (From f) | f <= 0 = ""
 getFrom (From f) = " OFFSET " ++ show f

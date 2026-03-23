@@ -139,7 +139,9 @@ genInsert tn cols mRetCol = genInsertBase tn cols (getRetCol mRetCol)
         getRetCol (Just col) = " RETURNING " ++ unColumn col
 
 genInsertOrUpdate :: TableName -> Columns -> Columns -> Columns -> TablePrefix -> Query
-genInsertOrUpdate tn uniqCols valCols otherCols = genInsertBase tn cols extSql
+genInsertOrUpdate tn uniqCols valCols otherCols
+  | null uniqCols = error "genInsertOrUpdate: empty conflict columns"
+  | otherwise = genInsertBase tn cols extSql
   where cols = uniqCols ++ valCols ++ otherCols
 
         genSetCol :: Column -> Column
@@ -149,12 +151,10 @@ genInsertOrUpdate tn uniqCols valCols otherCols = genInsertBase tn cols extSql
         genDoSql [] = " DO NOTHING"
         genDoSql xs = " DO UPDATE SET " ++ columnsToString (map genSetCol xs)
 
-        extSql
-          | null uniqCols = ""
-          | otherwise = concat
-              [ " ON CONFLICT (", columnsToString uniqCols, ")"
-              , genDoSql valCols
-              ]
+        extSql = concat
+          [ " ON CONFLICT (", columnsToString uniqCols, ")"
+          , genDoSql valCols
+          ]
 
 genUpdate :: TableName -> Columns -> String -> TablePrefix -> Query
 genUpdate tn cols partSql prefix

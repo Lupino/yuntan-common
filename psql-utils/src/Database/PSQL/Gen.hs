@@ -28,6 +28,8 @@ import           Database.PSQL.Types.Column         (Column (..), Columns,
 import           Database.PSQL.Types.GroupBy        (GroupBy)
 import           Database.PSQL.Types.Page           (Page)
 import           Database.PSQL.Types.TableName      (IndexName, TableName,
+                                                     getDDLTableName,
+                                                     getDMLTableName,
                                                      getIndexName, getTableName)
 import           Database.PSQL.Types.TablePrefix    (TablePrefix)
 
@@ -98,7 +100,7 @@ genCreateTable :: TableName -> Columns -> TablePrefix -> Query
 genCreateTable tn cols prefix
   | null cols = error "genCreateTable: empty table columns"
   | otherwise = fromString $ concat
-      [ "CREATE TABLE IF NOT EXISTS ", getTableName prefix tn, " ("
+      [ "CREATE TABLE IF NOT EXISTS ", getDDLTableName prefix tn, " ("
       , columnsToString cols
       , ")"
       ]
@@ -108,7 +110,7 @@ genCreateIndex uniq tn idxN cols prefix
   | null cols = error "genCreateIndex: empty index columns"
   | otherwise = fromString $ concat
       [ "CREATE ", uniqWord, "INDEX IF NOT EXISTS ", getIndexName prefix tn idxN
-      , " ON " , getTableName prefix tn, "(", columnsToString cols, ")"
+      , " ON " , getDDLTableName prefix tn, "(", columnsToString cols, ")"
       ]
 
   where uniqWord = if uniq then "UNIQUE " else ""
@@ -117,12 +119,12 @@ genInsertBase :: TableName -> Columns -> String -> TablePrefix -> Query
 genInsertBase tn cols extSql prefix = fromString $
   case cols of
     [] -> concat
-      [ "INSERT INTO ", getTableName prefix tn
+      [ "INSERT INTO ", getDMLTableName prefix tn
       , " DEFAULT VALUES"
       , extSql
       ]
     _  -> concat
-      [ "INSERT INTO ", getTableName prefix tn
+      [ "INSERT INTO ", getDMLTableName prefix tn
       , " (", columnsToString cols, ")"
       , " VALUES"
       , " (", columnsToString v, ")"
@@ -158,7 +160,7 @@ genUpdate :: TableName -> Columns -> String -> TablePrefix -> Query
 genUpdate tn cols partSql prefix
   | null cols = error "genUpdate: empty update columns"
   | otherwise = fromString $ concat
-      [ "UPDATE ", getTableName prefix tn
+      [ "UPDATE ", getDMLTableName prefix tn
       , " SET ", columnsToString setCols
       , genWhere partSql
       ]
@@ -171,5 +173,5 @@ genUpdate tn cols partSql prefix
 
 genDelete :: TableName -> String -> TablePrefix -> Query
 genDelete tn partSql prefix = fromString $ concat
-  [ "DELETE FROM ", getTableName prefix tn, genWhere partSql
+  [ "DELETE FROM ", getDMLTableName prefix tn, genWhere partSql
   ]

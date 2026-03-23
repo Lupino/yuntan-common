@@ -7,7 +7,8 @@ module Database.PSQL.Version
 
 import           Control.Monad              (foldM_, void)
 import           Data.Int                   (Int64)
-import           Data.List                  (sortOn)
+import           Data.List                  (groupBy, sortOn)
+import           Data.Function              (on)
 import           Database.PostgreSQL.Simple (Only (..))
 import           Database.PSQL.Exc          (createTable, insertRet, update)
 import           Database.PSQL.Select       (selectOneOnly)
@@ -41,12 +42,15 @@ type VersionList a = [Version a]
 mergeDatabase :: VersionList a -> PSQL ()
 mergeDatabase versionList = withTransaction $ do
   version <- getCurrentVersion
-  foldM_ processAction version (sortOn fst versionList)
+  foldM_ processVersionGroup version groupedVersions
+  where
+    groupedVersions = groupBy ((==) `on` fst) (sortOn fst versionList)
 
-processAction :: Int64 -> Version a -> PSQL Int64
-processAction version (ts, actions)
+processVersionGroup :: Int64 -> [Version a] -> PSQL Int64
+processVersionGroup version [] = pure version
+processVersionGroup version xs@((ts, _):_)
   | ts > version = do
-    mapM_ void actions
+    mapM_ (mapM_ void . snd) xs
     updateVersion ts
     pure ts
   | otherwise = pure version

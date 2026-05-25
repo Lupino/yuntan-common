@@ -9,6 +9,8 @@ module Database.PSQL
   -- re-exports
   , FromRow (..)
   , FromField (..)
+  , ResultError (..)
+  , returnError
   , ToRow (..)
   , ToField (..)
   , Action (..)
@@ -22,7 +24,9 @@ module Database.PSQL
 
 import           Database.PostgreSQL.Simple           (Connection, Only (..),
                                                        SqlError (..))
-import           Database.PostgreSQL.Simple.FromField (FromField (..))
+import           Database.PostgreSQL.Simple.FromField (FromField (..),
+                                                       ResultError (..),
+                                                       returnError)
 import           Database.PostgreSQL.Simple.FromRow   (FromRow (..), field)
 import           Database.PostgreSQL.Simple.ToField   (Action (..),
                                                        ToField (..))

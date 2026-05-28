@@ -9,9 +9,9 @@ module Haxl.RedisConfig
 import           Data.Aeson     (FromJSON, parseJSON, withObject, (.!=), (.:?))
 import           Data.String    (fromString)
 import           Data.Time      (NominalDiffTime)
-import           Database.Redis (ConnectInfo (..), Connection,
-                                 PortID (PortNumber), connect,
-                                 defaultConnectInfo)
+import           Database.Redis (ConnectAddr (..), ConnectInfo (..), Connection,
+                                 connect, defaultConnectInfo)
+import           Network.Socket (PortNumber)
 
 
 
@@ -60,8 +60,7 @@ genRedisConnection :: RedisConfig -> IO (Maybe Connection)
 genRedisConnection conf =
   if enable then do
       conn <- connect $ defaultConnectInfo
-        { connectHost           = h
-        , connectPort           = PortNumber p
+        { connectAddr           = ConnectAddrHostPort h p
         , connectAuth           = auth
         , connectDatabase       = db
         , connectMaxConnections = maxConnections
@@ -73,7 +72,7 @@ genRedisConnection conf =
 
   where db             = redisDB             conf
         h              = redisHost           conf
-        p              = fromIntegral $ redisPort conf
+        p              = fromIntegral (redisPort conf) :: PortNumber
         enable         = redisEnable         conf
         maxConnections = redisMaxConnections conf
         maxIdleTime    = redisMaxIdleTime    conf

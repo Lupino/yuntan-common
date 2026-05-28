@@ -50,6 +50,7 @@ import           Data.ByteString.Lazy     (toStrict)
 import           Data.Either              (fromRight)
 import           Data.Hashable            (Hashable (..))
 import           Data.List                (groupBy)
+import           Data.List.NonEmpty       (NonEmpty (..))
 import           Data.Maybe               (fromMaybe, mapMaybe)
 import           Data.Text.Encoding       (decodeUtf8)
 import           Data.Typeable            (Typeable)
@@ -74,16 +75,19 @@ getData_ :: Connection -> ByteString -> IO (Maybe ByteString)
 getData_ conn k = runRedis conn $ fromRight Nothing <$> R.get k
 
 mGetData_ :: Connection -> [ByteString] -> IO [Maybe ByteString]
-mGetData_ conn ks = runRedis conn $ fromRight [] <$> R.mget ks
+mGetData_ _ []          = pure []
+mGetData_ conn (k : ks) = runRedis conn $ fromRight [] <$> R.mget (k :| ks)
 
 setData_ :: Connection -> ByteString -> ByteString -> IO ()
 setData_ conn k = runRedis conn . void . R.set k
 
 mSetData_ :: Connection -> [(ByteString, ByteString)] -> IO ()
-mSetData_ conn = runRedis conn . void . R.mset
+mSetData_ _ []           = pure ()
+mSetData_ conn (kv : kvs) = runRedis conn . void $ R.mset (kv :| kvs)
 
 delData_ :: Connection -> [ByteString] -> IO ()
-delData_ conn = runRedis conn . void . R.del
+delData_ _ []          = pure ()
+delData_ conn (k : ks) = runRedis conn . void $ R.del (k :| ks)
 
 expireData_ :: Connection -> ByteString -> Integer -> IO ()
 expireData_ conn k = runRedis conn . void . R.expire k
@@ -92,16 +96,19 @@ hgetData_ :: Connection -> ByteString -> ByteString -> IO (Maybe ByteString)
 hgetData_ conn k f = runRedis conn $ fromRight Nothing <$> R.hget k f
 
 hmGetData_ :: Connection -> ByteString -> [ByteString] -> IO [Maybe ByteString]
-hmGetData_ conn k fs = runRedis conn $ fromRight [] <$> R.hmget k fs
+hmGetData_ _ _ []        = pure []
+hmGetData_ conn k (f : fs) = runRedis conn $ fromRight [] <$> R.hmget k (f :| fs)
 
 hsetData_ :: Connection -> ByteString -> ByteString -> ByteString -> IO ()
-hsetData_ conn k f = runRedis conn . void . R.hset k f
+hsetData_ conn k f v = runRedis conn . void $ R.hset k ((f, v) :| [])
 
 hmSetData_ :: Connection -> ByteString -> [(ByteString, ByteString)] -> IO ()
-hmSetData_ conn k = runRedis conn . void . R.hmset k
+hmSetData_ _ _ []          = pure ()
+hmSetData_ conn k (fv : fvs) = runRedis conn . void $ R.hmset k (fv :| fvs)
 
 hdelData_ :: Connection -> ByteString -> [ByteString] -> IO ()
-hdelData_ conn k fs = runRedis conn . void $ R.hdel k fs
+hdelData_ _ _ []        = pure ()
+hdelData_ conn k (f : fs) = runRedis conn . void $ R.hdel k (f :| fs)
 
 hgetallData_ :: Connection -> ByteString -> IO [(ByteString, ByteString)]
 hgetallData_ conn k = runRedis conn $ fromRight [] <$> R.hgetall k

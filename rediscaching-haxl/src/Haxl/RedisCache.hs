@@ -22,6 +22,7 @@ module Haxl.RedisCache
   , hget
   , hget'
   , hset
+  , hsetMany
   , hdel
 
   , hexists
@@ -38,8 +39,8 @@ module Haxl.RedisCache
 
 import           Control.Concurrent.Async
 import           Control.Concurrent.QSem
+import           Control.Concurrent       (threadDelay)
 import qualified Control.Exception        as CE (SomeException, bracket_, try)
-import           Control.Monad            (void)
 import           Data.Aeson               (FromJSON, ToJSON, Value (Null),
                                            decodeStrict, encode, object, (.=))
 import           Data.Aeson.Helper        (union)
@@ -54,11 +55,12 @@ import           Data.List.NonEmpty       (NonEmpty (..))
 import           Data.Maybe               (fromMaybe, mapMaybe)
 import           Data.Text.Encoding       (decodeUtf8)
 import           Data.Typeable            (Typeable)
-import           Database.Redis           (Connection, runRedis)
+import           Database.Redis           (Connection, Redis, Reply, runRedis)
 import qualified Database.Redis           as R (del, expire, get, hdel, hexists,
                                                 hget, hgetall, hmget, hmset,
-                                                hset, mget, mset, set)
+                                                hset, eval, mget, mset, set)
 import           Haxl.Core                hiding (fetchReq)
+import           System.IO                (hPutStrLn, stderr)
 
 newtype Conn = Conn Connection
 
@@ -78,19 +80,46 @@ mGetData_ :: Connection -> [ByteString] -> IO [Maybe ByteString]
 mGetData_ _ []          = pure []
 mGetData_ conn (k : ks) = runRedis conn $ fromRight [] <$> R.mget (k :| ks)
 
+redisRetryDelays_ :: [Int]
+redisRetryDelays_ = [50000, 100000, 200000]
+
+checkedRedis_ :: Show e => String -> IO (Either e a) -> IO ()
+checkedRedis_ label = checkedRedisWithRetry_ label 1 redisRetryDelays_
+
+checkedRedisWithRetry_ :: Show e => String -> Int -> [Int] -> IO (Either e a) -> IO ()
+checkedRedisWithRetry_ label attempt delays io = do
+  res <- io
+  case res of
+    Left err -> do
+      let msg = "Redis command failed: " ++ label ++ ": " ++ show err
+      hPutStrLn stderr msg
+      case delays of
+        [] -> fail msg
+        delay : rest -> do
+          hPutStrLn stderr $
+            "Retrying Redis command: " ++ label ++
+            " attempt=" ++ show (attempt + 1) ++
+            " delay_us=" ++ show delay
+          threadDelay delay
+          checkedRedisWithRetry_ label (attempt + 1) rest io
+    Right _  -> pure ()
+
 setData_ :: Connection -> ByteString -> ByteString -> IO ()
-setData_ conn k = runRedis conn . void . R.set k
+setData_ conn k v = checkedRedis_ ("SET key=" ++ show k) $ runRedis conn $ R.set k v
 
 mSetData_ :: Connection -> [(ByteString, ByteString)] -> IO ()
 mSetData_ _ []           = pure ()
-mSetData_ conn (kv : kvs) = runRedis conn . void $ R.mset (kv :| kvs)
+mSetData_ conn kvs@(kv : kvs') =
+  checkedRedis_ ("MSET keys=" ++ show (map fst kvs)) $ runRedis conn $ R.mset (kv :| kvs')
 
 delData_ :: Connection -> [ByteString] -> IO ()
 delData_ _ []          = pure ()
-delData_ conn (k : ks) = runRedis conn . void $ R.del (k :| ks)
+delData_ conn ks@(k : ks') =
+  checkedRedis_ ("DEL keys=" ++ show ks) $ runRedis conn $ R.del (k :| ks')
 
 expireData_ :: Connection -> ByteString -> Integer -> IO ()
-expireData_ conn k = runRedis conn . void . R.expire k
+expireData_ conn k t =
+  checkedRedis_ ("EXPIRE key=" ++ show k ++ " seconds=" ++ show t) $ runRedis conn $ R.expire k t
 
 hgetData_ :: Connection -> ByteString -> ByteString -> IO (Maybe ByteString)
 hgetData_ conn k f = runRedis conn $ fromRight Nothing <$> R.hget k f
@@ -100,15 +129,33 @@ hmGetData_ _ _ []        = pure []
 hmGetData_ conn k (f : fs) = runRedis conn $ fromRight [] <$> R.hmget k (f :| fs)
 
 hsetData_ :: Connection -> ByteString -> ByteString -> ByteString -> IO ()
-hsetData_ conn k f v = runRedis conn . void $ R.hset k ((f, v) :| [])
+hsetData_ conn k f v =
+  checkedRedis_ ("HSET key=" ++ show k ++ " field=" ++ show f) $
+    runRedis conn $ R.hset k ((f, v) :| [])
+
+hsetManyScript_ :: ByteString
+hsetManyScript_ = "for i = 1, #KEYS do redis.call('HSET', KEYS[i], ARGV[(i - 1) * 2 + 1], ARGV[(i - 1) * 2 + 2]) end return 1"
+
+hsetManyData_ :: Connection -> [(ByteString, ByteString, ByteString)] -> IO ()
+hsetManyData_ _ [] = pure ()
+hsetManyData_ conn xs = checkedRedis_ ("EVAL hsetMany keys_fields=" ++ show keysFields) $ runRedis conn evalHSetMany
+  where keys = [k | (k, _, _) <- xs]
+        argv = concatMap (\(_, f, v) -> [f, v]) xs
+        keysFields = [(k, f) | (k, f, _) <- xs]
+        evalHSetMany :: Redis (Either Reply Integer)
+        evalHSetMany = R.eval hsetManyScript_ keys argv
 
 hmSetData_ :: Connection -> ByteString -> [(ByteString, ByteString)] -> IO ()
 hmSetData_ _ _ []          = pure ()
-hmSetData_ conn k (fv : fvs) = runRedis conn . void $ R.hmset k (fv :| fvs)
+hmSetData_ conn k fvs@(fv : fvs') =
+  checkedRedis_ ("HMSET key=" ++ show k ++ " fields=" ++ show (map fst fvs)) $
+    runRedis conn $ R.hmset k (fv :| fvs')
 
 hdelData_ :: Connection -> ByteString -> [ByteString] -> IO ()
 hdelData_ _ _ []        = pure ()
-hdelData_ conn k (f : fs) = runRedis conn . void $ R.hdel k (f :| fs)
+hdelData_ conn k fs@(f : fs') =
+  checkedRedis_ ("HDEL key=" ++ show k ++ " fields=" ++ show fs) $
+    runRedis conn $ R.hdel k (f :| fs')
 
 hgetallData_ :: Connection -> ByteString -> IO [(ByteString, ByteString)]
 hgetallData_ conn k = runRedis conn $ fromRight [] <$> R.hgetall k
@@ -125,6 +172,7 @@ data RedisReq a where
   ExpireData :: Conn -> ByteString -> Integer -> RedisReq ()
   HGetData :: Conn -> ByteString -> ByteString -> RedisReq (Maybe ByteString)
   HSetData :: Conn -> ByteString -> ByteString -> ByteString -> RedisReq ()
+  HSetManyData :: Conn -> [(ByteString, ByteString, ByteString)] -> RedisReq ()
   HDelData :: Conn -> ByteString -> [ByteString] -> RedisReq ()
 
   HGetAllData :: Conn -> ByteString -> RedisReq [(ByteString, ByteString)]
@@ -141,12 +189,13 @@ instance Hashable (RedisReq a) where
   hashWithSalt s (ExpireData _ k t)  = hashWithSalt s (4::Int, k, t)
   hashWithSalt s (HGetData _ k f)    = hashWithSalt s (5::Int, k, f)
   hashWithSalt s (HSetData _ k f v)  = hashWithSalt s (6::Int, k, f, v)
-  hashWithSalt s (HDelData _ k fs)   = hashWithSalt s (7::Int, k, fs)
+  hashWithSalt s (HSetManyData _ xs) = hashWithSalt s (7::Int, xs)
+  hashWithSalt s (HDelData _ k fs)   = hashWithSalt s (8::Int, k, fs)
 
-  hashWithSalt s (HGetAllData _ k)   = hashWithSalt s (8::Int, k)
-  hashWithSalt s (HExistsData _ k f) = hashWithSalt s (9::Int, k, f)
+  hashWithSalt s (HGetAllData _ k)   = hashWithSalt s (9::Int, k)
+  hashWithSalt s (HExistsData _ k f) = hashWithSalt s (10::Int, k, f)
 
-  hashWithSalt s (GenKey k)          = hashWithSalt s (10::Int, k)
+  hashWithSalt s (GenKey k)          = hashWithSalt s (11::Int, k)
 
 deriving instance Show (RedisReq a)
 instance ShowP RedisReq where showp = show
@@ -248,6 +297,8 @@ fetchReq pref (DelData (Conn conn) ks)      = delData_ conn $ map (genKey_ pref)
 fetchReq pref (ExpireData (Conn conn) k t)  = expireData_ conn (genKey_ pref k) t
 fetchReq pref (HGetData (Conn conn) k f)    = hgetData_ conn (genKey_ pref k) f
 fetchReq pref (HSetData (Conn conn) k f v)  = hsetData_ conn (genKey_ pref k) f v
+fetchReq pref (HSetManyData (Conn conn) xs) = hsetManyData_ conn $ map withKey xs
+  where withKey (k, f, v) = (genKey_ pref k, f, v)
 fetchReq pref (HDelData (Conn conn) k fs)   = hdelData_ conn (genKey_ pref k) fs
 fetchReq pref (HGetAllData (Conn conn) k)   = hgetallData_ conn (genKey_ pref k)
 fetchReq pref (HExistsData (Conn conn) k f) = hexistsData_ conn (genKey_ pref k) f
@@ -282,6 +333,10 @@ hgetData' conn k f = parseJSON <$> uncachedRequest (HGetData (Conn conn) k f)
 
 hsetData :: ToJSON v => Connection -> ByteString -> ByteString -> v -> GenHaxl u w ()
 hsetData conn k f = uncachedRequest . HSetData (Conn conn) k f . toStrict . encode
+
+hsetManyData :: ToJSON v => Connection -> [(ByteString, ByteString, v)] -> GenHaxl u w ()
+hsetManyData conn xs = uncachedRequest $ HSetManyData (Conn conn) $
+  map (\(k, f, v) -> (k, f, toStrict $ encode v)) xs
 
 hdelData :: Connection -> ByteString -> [ByteString] -> GenHaxl u w ()
 hdelData conn k = uncachedRequest . HDelData (Conn conn) k
@@ -357,6 +412,9 @@ hget' redis k f = useRedis redis Nothing $ \conn -> hgetData' conn k f
 
 hset :: ToJSON v => (u -> Maybe Connection) -> ByteString -> ByteString -> v -> GenHaxl u w ()
 hset redis k f v = useRedis redis () $ \conn -> hsetData conn k f v
+
+hsetMany :: ToJSON v => (u -> Maybe Connection) -> [(ByteString, ByteString, v)] -> GenHaxl u w ()
+hsetMany redis xs = useRedis redis () $ \conn -> hsetManyData conn xs
 
 hgetall :: (u -> Maybe Connection) -> ByteString -> GenHaxl u w [(ByteString, ByteString)]
 hgetall redis k = useRedis redis [] (`hgetallData` k)
